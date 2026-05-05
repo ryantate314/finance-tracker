@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Transactatrack.Api/Transactatrack.Api.csproj" />
+    <Project Path="src/Transactatrack.Application/Transactatrack.Application.csproj" />
+    <Project Path="src/Transactatrack.Domain/Transactatrack.Domain.csproj" />
+    <Project Path="src/Transactatrack.Infrastructure/Transactatrack.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Transactatrack.IntegrationTests/Transactatrack.IntegrationTests.csproj" />
+    <Project Path="tests/Transactatrack.UnitTests/Transactatrack.UnitTests.csproj" />
+  </Folder>
+</Solution>

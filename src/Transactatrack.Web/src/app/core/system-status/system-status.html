@@ -1,0 +1,37 @@
+<section class="status">
+  <header class="status-header">
+    <h2>System Status</h2>
+    <button type="button" (click)="refresh()" [disabled]="loading()">Refresh</button>
+  </header>
+
+  @if (loading()) {
+    <p class="muted">Checking…</p>
+  } @else if (error()) {
+    <div class="row error">
+      <span class="pill error">API</span>
+      <span class="message">{{ error() }}</span>
+    </div>
+  } @else if (health(); as h) {
+    <div class="row">
+      <span class="pill" [class.ok]="h.api.status === 'ok'" [class.error]="h.api.status !== 'ok'">API</span>
+      <span class="status-text">{{ h.api.status }}</span>
+      <span class="message">v{{ h.api.version }}</span>
+    </div>
+    <div class="row">
+      <span class="pill" [class.ok]="h.database.status === 'ok'" [class.error]="h.database.status !== 'ok'">Database</span>
+      <span class="status-text">{{ h.database.status }}</span>
+      @if (h.database.message) {
+        <span class="message">{{ h.database.message }}</span>
+      }
+    </div>
+    <div class="row">
+      <span class="pill" [class.ok]="h.ollama.status === 'ok'" [class.error]="h.ollama.status !== 'ok'">Ollama</span>
+      <span class="status-text">{{ h.ollama.status }}</span>
+      @if (h.ollama.models.length) {
+        <span class="message">models: {{ h.ollama.models.join(', ') }}</span>
+      } @else if (h.ollama.message) {
+        <span class="message">{{ h.ollama.message }}</span>
+      }
+    </div>
+  }
+</section>

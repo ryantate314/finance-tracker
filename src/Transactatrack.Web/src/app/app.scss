@@ -1,0 +1,22 @@
+:host {
+  display: block;
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  color: #1e293b;
+}
+
+.app-toolbar {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 0.75rem 1.25rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+
+.app-main {
+  padding: 1.5rem;
+}

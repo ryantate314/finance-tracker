@@ -1,0 +1,14 @@
+{
+  "ConnectionStrings": {
+    "Default": "Host=localhost;Port=5432;Database=transactatrack;Username=YOUR_PG_USER;Password=YOUR_PG_PASSWORD"
+  },
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Information",
+      "Override": {
+        "Transactatrack": "Debug",
+        "Microsoft.AspNetCore": "Information"
+      }
+    }
+  }
+}
