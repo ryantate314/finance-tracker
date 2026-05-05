@@ -18,6 +18,9 @@ This file captures phased build steps only — not full implementation detail. A
 - **Deployment**: Plain HTTP containers behind user's existing reverse proxy (proxy choice confirmed at deploy time).
 - **Stack versions**: .NET 10, Angular CLI 21 (standalone, SCSS), Postgres 16, Serilog (console sink), Ollama with `llama3.2:1b` for dev. Production Ollama model still TBD.
 - **Dev vs deploy split**: Local dev runs natively on the host (assumes Postgres + Ollama already installed). Containers are used **only** for production deployment in Phase 6. The `deploy/` folder is intentionally absent until then.
+- **UI library**: Angular Material (M3, azure/rose theme).
+- **Application layer pattern**: thin — controllers query `AppDbContext` directly. Service layer reserved for non-CRUD logic (parsing, rule engine, transfer matching).
+- **Active family contract**: `X-Family-Id` request header; absent → seed default (`SeedIds.DefaultFamilyId = 00000000-0000-0000-0000-000000000001`); malformed → 400.
 
 ## Repository Layout (target)
 
@@ -58,7 +61,9 @@ transactatrack/
 
 ---
 
-## Phase 1 — Core Domain + Family Scoping
+## Phase 1 — Core Domain + Family Scoping ✅ Complete
+
+**Completed (2026-05-05):** All 7 domain entities (`Family`, `Owner`, `Account`, `Category`, `Transaction`, `ImportBatch`, `CategoryRule`) added with `FamilyScopedEntity` base class and `Phase1Schema` migration applied. EF Core global query filters scope every entity by `X-Family-Id` header (absent → seed default `00000000-0000-0000-0000-000000000001`). REST controllers for Families, Owners, Accounts, Categories with `DeleteBehavior.Restrict` + 409 on FK violation. Angular Material (azure/rose M3 theme) wired; `FamilyContextService` (signal + localStorage) + `familyIdInterceptor` in place; toolbar family switcher and 4 feature pages (list + edit-dialog each). 6/6 integration tests green (Testcontainers.PostgreSql). Application layer is thin — controllers query `AppDbContext` directly.
 
 **Goal**: CRUD the building blocks, with every record scoped to a Family.
 

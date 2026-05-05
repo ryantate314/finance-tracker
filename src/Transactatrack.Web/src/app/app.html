@@ -1,6 +1,23 @@
-<header class="app-toolbar">
-  <h1>transactatrack</h1>
-</header>
+<mat-toolbar color="primary">
+  <span class="app-title">transactatrack</span>
+  <nav class="nav-links">
+    <a mat-button routerLink="/status" routerLinkActive="active-link">Status</a>
+    <a mat-button routerLink="/families" routerLinkActive="active-link">Families</a>
+    <a mat-button routerLink="/owners" routerLinkActive="active-link">Owners</a>
+    <a mat-button routerLink="/accounts" routerLinkActive="active-link">Accounts</a>
+    <a mat-button routerLink="/categories" routerLinkActive="active-link">Categories</a>
+  </nav>
+  <span class="spacer"></span>
+  <mat-select
+    class="family-select"
+    [value]="activeFamilyId()"
+    (valueChange)="onFamilyChange($event)"
+    placeholder="Select family">
+    @for (f of families(); track f.id) {
+      <mat-option [value]="f.id">{{ f.name }}</mat-option>
+    }
+  </mat-select>
+</mat-toolbar>
 <main class="app-main">
   <router-outlet />
 </main>

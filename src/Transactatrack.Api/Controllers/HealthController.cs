@@ -7,7 +7,7 @@ using Transactatrack.Infrastructure.Persistence;
 namespace Transactatrack.Api.Controllers;
 
 [ApiController]
-[Route("api/health")]
+[Route("api/status")]
 public class HealthController : ControllerBase
 {
     private static readonly string AssemblyVersion =

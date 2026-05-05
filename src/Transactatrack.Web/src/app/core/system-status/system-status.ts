@@ -26,7 +26,7 @@ export class SystemStatus implements OnInit {
   refresh(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.http.get<HealthResponse>(`${environment.apiBaseUrl}/health`).subscribe({
+    this.http.get<HealthResponse>(`${environment.apiBaseUrl}/status`).subscribe({
       next: (h) => {
         this.health.set(h);
         this.loading.set(false);

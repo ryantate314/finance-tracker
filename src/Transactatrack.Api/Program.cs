@@ -1,5 +1,9 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using Transactatrack.Api.HealthChecks;
+using Transactatrack.Api.Middleware;
+using Transactatrack.Application;
 using Transactatrack.Infrastructure.Llm;
 using Transactatrack.Infrastructure.Persistence;
 
@@ -9,8 +13,13 @@ builder.Host.UseSerilog((ctx, lc) => lc
     .ReadFrom.Configuration(ctx.Configuration)
     .WriteTo.Console());
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opt =>
+        opt.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
+
+builder.Services.AddScoped<FamilyContext>();
+builder.Services.AddScoped<IFamilyContext>(sp => sp.GetRequiredService<FamilyContext>());
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
@@ -21,6 +30,10 @@ builder.Services.AddHttpClient<OllamaClient>(c =>
         ?? throw new InvalidOperationException("Ollama:BaseUrl is not configured");
     c.BaseAddress = new Uri(baseUrl);
 });
+
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
+    .AddCheck<OllamaHealthCheck>("ollama", tags: ["ready"]);
 
 if (builder.Environment.IsDevelopment())
 {
@@ -39,6 +52,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
+app.UseMiddleware<FamilyContextMiddleware>();
 app.MapControllers();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready") });
 
 app.Run();
+
+public partial class Program { }

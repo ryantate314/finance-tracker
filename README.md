@@ -7,7 +7,8 @@ Stack: ASP.NET Web API (.NET 10) + Angular 21 + PostgreSQL, with Ollama for LLM-
 ## Phase status
 
 - **Phase 0** ✅ — solution scaffold, empty schema, `/api/health`, Angular system-status page.
-- Phase 1+ — see `.claude/plans/i-want-to-build-federated-bengio.md`.
+- **Phase 1** ✅ — 7 domain entities, family scoping via `X-Family-Id` header, CRUD for Families/Owners/Accounts/Categories, Angular Material toolbar with family switcher, 6 integration tests.
+- Phase 2+ — see `.claude/plans/i-want-to-build-federated-bengio.md`.
 
 ## Prerequisites
 
@@ -52,6 +53,17 @@ ng serve
 ```
 
 Then browse to http://localhost:4200/status — API, Database, and Ollama rows should all be green.
+
+## Family scoping
+
+Every entity is scoped to a family. The active family is read from the `X-Family-Id` request header on every API call. If the header is absent the API falls back to the seeded default family (`00000000-0000-0000-0000-000000000001`). The Angular app stores the selection in `localStorage` and injects the header automatically via an HTTP interceptor.
+
+To reset the dev DB after schema changes:
+
+```bash
+dotnet ef database drop -f -p src/Transactatrack.Infrastructure -s src/Transactatrack.Api
+dotnet ef database update -p src/Transactatrack.Infrastructure -s src/Transactatrack.Api
+```
 
 ## Configuration
 
