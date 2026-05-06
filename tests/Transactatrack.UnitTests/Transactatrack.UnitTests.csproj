@@ -21,6 +21,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Transactatrack.Domain\Transactatrack.Domain.csproj" />
     <ProjectReference Include="..\..\src\Transactatrack.Application\Transactatrack.Application.csproj" />
+    <ProjectReference Include="..\..\src\Transactatrack.Infrastructure\Transactatrack.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Transactatrack.IntegrationTests\TestData\ChaseSample.csv" Link="TestData\ChaseSample.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

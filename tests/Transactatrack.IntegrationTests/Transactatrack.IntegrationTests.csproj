@@ -26,4 +26,10 @@
     <ProjectReference Include="..\..\src\Transactatrack.Infrastructure\Transactatrack.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="TestData\ChaseSample.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

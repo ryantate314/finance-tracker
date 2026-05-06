@@ -4,6 +4,9 @@ using Serilog;
 using Transactatrack.Api.HealthChecks;
 using Transactatrack.Api.Middleware;
 using Transactatrack.Application;
+using Transactatrack.Application.Imports;
+using Transactatrack.Infrastructure.Imports;
+using Transactatrack.Infrastructure.Imports.Parsers;
 using Transactatrack.Infrastructure.Llm;
 using Transactatrack.Infrastructure.Persistence;
 
@@ -34,6 +37,11 @@ builder.Services.AddHttpClient<OllamaClient>(c =>
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"])
     .AddCheck<OllamaHealthCheck>("ollama", tags: ["ready"]);
+
+builder.Services.AddSingleton<IBankCsvParser, ChaseParser>();
+builder.Services.AddSingleton<IBankParserRegistry, BankParserRegistry>();
+builder.Services.AddSingleton<SourceRowHasher>();
+builder.Services.AddScoped<IImportService, ImportService>();
 
 if (builder.Environment.IsDevelopment())
 {

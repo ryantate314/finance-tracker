@@ -77,7 +77,9 @@ transactatrack/
 
 ---
 
-## Phase 2 — CSV Import (one bank)
+## Phase 2 — CSV Import (one bank) ✅ Complete
+
+**Completed (2026-05-06):** `IBankCsvParser` + `IBankParserRegistry` abstractions in Application; `ChaseParser` (CsvHelper-based, BankCode `"Chase"`) in Infrastructure. `SourceRowHasher` produces SHA-256 hex of `accountId|yyyy-MM-dd|amount(invariant)|normalized(description)` and feeds the existing `(AccountId, SourceRowHash)` unique index for dedup. `ImportService` (Infrastructure) handles upload → persist as `Pending` → flip on commit / delete on discard, with parser dispatch via `Account.BankCode` (null → 400, unknown → 400, existing pending → 409). `ImportsController` (`POST /api/imports` multipart, GET list + by id, `POST /commit` and `/discard`) and `TransactionsController` (`GET /api/transactions` paged with `accountIds`, `categoryIds`, `from`, `to`, `q`; `EF.Functions.ILike` for case-insensitive search; ledger filtered to `Status == Committed`). Angular: lazy-loaded `/imports`, `/imports/:id`, `/ledger`. Imports page lists batches; upload dialog filters accounts to those with `BankCode` set; preview page shows metadata + sample rows + Commit / Discard buttons; ledger page uses `mat-paginator`, native datepickers, multi-select chips for accounts/categories, debounced search. Tests: 13 unit (Chase parser, SourceRowHasher), 20 integration (upload/commit/discard, dedup intra-file, scoping, paging/filters) — all green. No new EF migration required (Phase 1 schema was already sufficient).
 
 **Goal**: Upload a CSV from the chosen bank → see rows in the unified ledger.
 
@@ -101,7 +103,8 @@ transactatrack/
 - Pipeline runs at import-commit time; can be re-run on demand for a date range.
 - Ollama client: HTTP call to local container; prompt includes the family's category list and the transaction's merchant/description/amount; returns a category + confidence.
 - Persist LLM result with `Source` (rule / llm / manual) and `NeedsReview` flag when confidence is low.
-- Angular: rule editor (CRUD + drag-to-reorder priority), per-transaction recategorize control, "needs review" filter on the ledger.
+- **Categorization runs at upload time** (against the Pending batch), so rows arrive in the import-preview page already categorized. The user adjusts mappings on the preview before clicking Commit — Phase 2 deferred this UI here on purpose so the rule engine could populate the same column. Adds a category column with inline `mat-select` editing on `import-preview-page.ts`, plus a backend endpoint to update `Transaction.CategoryId` (works for Pending and Committed rows so the same control serves both pages).
+- Angular: rule editor (CRUD + drag-to-reorder priority), per-transaction recategorize control on both import-preview and ledger, "needs review" filter on the ledger (good for spot-fixing rule mistakes after commit).
 
 **Verify**: Add a rule "Description contains COSTCO → Groceries"; re-run categorization; matching rows reclassify. Disable the rule; un-matched row gets an Ollama suggestion within a few seconds.
 
@@ -166,7 +169,7 @@ transactatrack/
 
 ## Open Items (decide at execution time)
 
-- Which specific bank for the v1 parser (need sample CSV).
 - Reverse-proxy product in use (Traefik / Nginx Proxy Manager / Caddy / other) — affects Phase 6 wiring only.
 - **Production** Ollama model choice (e.g. `llama3.1:8b` vs smaller) — dev uses `llama3.2:1b`; pick prod model based on the VM's available RAM.
 - Angular chart library (ng2-charts vs ngx-charts).
+- Additional bank parsers — Chase is the v1 target (locked in 2026-05-06); add more `IBankCsvParser` implementations as new banks come up.

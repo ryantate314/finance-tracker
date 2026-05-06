@@ -487,3 +487,6 @@ dist/
 .angular/
 **/appsettings.Development.json
 **/appsettings.*.local.json
+
+# Real bank exports — NEVER commit. Sanitized fixtures live under tests/.../TestData/
+/data/

@@ -1,5 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
@@ -17,18 +17,21 @@ import { FamilyContextService } from './core/family-context/family-context.servi
 export class App implements OnInit {
   private familiesSvc = inject(FamiliesService);
   private familyCtx = inject(FamilyContextService);
+  private destroyRef = inject(DestroyRef);
 
   families = toSignal(this.familiesSvc.families$, { initialValue: [] });
   activeFamilyId = this.familyCtx.activeFamilyId;
 
   ngOnInit() {
-    this.familiesSvc.families$.subscribe(families => {
-      const stored = this.familyCtx.activeFamilyId();
-      if (!stored || !families.find(f => f.id === stored)) {
-        const defaultFamily = families.find(f => f.id === '00000000-0000-0000-0000-000000000001') ?? families[0];
-        if (defaultFamily) this.familyCtx.setActive(defaultFamily.id);
-      }
-    });
+    this.familiesSvc.families$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(families => {
+        const stored = this.familyCtx.activeFamilyId();
+        if (!stored || !families.find(f => f.id === stored)) {
+          const defaultFamily = families.find(f => f.id === '00000000-0000-0000-0000-000000000001') ?? families[0];
+          if (defaultFamily) this.familyCtx.setActive(defaultFamily.id);
+        }
+      });
   }
 
   onFamilyChange(id: string) {

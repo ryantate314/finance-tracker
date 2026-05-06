@@ -20,8 +20,8 @@ Local credentials go in `src/Transactatrack.Api/appsettings.Development.json` (g
 ## Common commands
 
 ```bash
-make db-update         # apply pending EF migrations only
-make api               # db-update then start the API on :5080
+make db-update         # apply pending EF migrations (run separately when migrations are pending)
+make api               # start the API on :5080 (does NOT run migrations — use `make db-update` first)
 make ui                # ng serve on :4200
 make test              # unit + integration tests
 make test-unit         # unit tests only
@@ -39,6 +39,7 @@ dotnet test tests/Transactatrack.IntegrationTests --filter "FullyQualifiedName~F
 To reset the dev database:
 ```bash
 dotnet ef database drop -f -p src/Transactatrack.Infrastructure -s src/Transactatrack.Api
+make db-update
 make api
 ```
 

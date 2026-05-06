@@ -13,7 +13,7 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.Description).IsRequired().HasMaxLength(500);
         builder.Property(t => t.Merchant).HasMaxLength(200);
         builder.Property(t => t.Amount).HasPrecision(18, 4);
-        builder.Property(t => t.SourceRowHash).IsRequired().HasMaxLength(64);
+        builder.Property(t => t.SourceRowHash).IsRequired().HasMaxLength(80);
 
         builder.HasIndex(t => new { t.FamilyId, t.AccountId, t.Date });
         builder.HasIndex(t => new { t.AccountId, t.SourceRowHash }).IsUnique();
