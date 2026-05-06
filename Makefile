@@ -1,4 +1,4 @@
-.PHONY: api ui db-update test test-unit test-integration test-e2e test-e2e-ui migrate
+.PHONY: api ui db-update test test-unit test-integration test-e2e test-e2e-ui migrate bench
 
 export PATH := $(HOME)/.dotnet/tools:$(PATH)
 
@@ -30,3 +30,6 @@ migrate:
 		-p src/Transactatrack.Infrastructure \
 		-s src/Transactatrack.Api \
 		-o Persistence/Migrations
+
+bench:
+	dotnet run --project tools/Transactatrack.LlmBenchmark -- $(ARGS)

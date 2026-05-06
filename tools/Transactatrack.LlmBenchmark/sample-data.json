@@ -1,0 +1,91 @@
+{
+  "categories": [
+    { "name": "Food", "subCategories": ["Groceries", "Restaurants"] },
+    { "name": "Transport", "subCategories": ["Gas", "Public Transit"] },
+    { "name": "Shopping", "subCategories": [] },
+    { "name": "Entertainment", "subCategories": ["Streaming", "Events"] },
+    { "name": "Utilities", "subCategories": ["Electric", "Internet"] }
+  ],
+  "transactions": [
+    {
+      "date": "2026-04-01",
+      "amount": -87.43,
+      "description": "KROGER #0412",
+      "merchant": "Kroger",
+      "expectedCategory": "Food",
+      "expectedSubCategory": "Groceries"
+    },
+    {
+      "date": "2026-04-02",
+      "amount": -42.10,
+      "description": "AMAZON.COM PURCHASE",
+      "merchant": "Amazon",
+      "expectedCategory": "Shopping",
+      "expectedSubCategory": null
+    },
+    {
+      "date": "2026-04-03",
+      "amount": -38.75,
+      "description": "CHEVRON #1022",
+      "merchant": "Chevron",
+      "expectedCategory": "Transport",
+      "expectedSubCategory": "Gas"
+    },
+    {
+      "date": "2026-04-04",
+      "amount": -14.99,
+      "description": "NETFLIX.COM",
+      "merchant": "Netflix",
+      "expectedCategory": "Entertainment",
+      "expectedSubCategory": "Streaming"
+    },
+    {
+      "date": "2026-04-05",
+      "amount": -62.50,
+      "description": "OLIVE GARDEN #0088",
+      "merchant": "Olive Garden",
+      "expectedCategory": "Food",
+      "expectedSubCategory": "Restaurants"
+    },
+    {
+      "date": "2026-04-06",
+      "amount": -3.25,
+      "description": "METROPOLITAN TRANSIT AUTHORITY",
+      "merchant": "MTA",
+      "expectedCategory": "Transport",
+      "expectedSubCategory": "Public Transit"
+    },
+    {
+      "date": "2026-04-07",
+      "amount": -120.00,
+      "description": "BEST BUY 00003425",
+      "merchant": "Best Buy",
+      "expectedCategory": "Shopping",
+      "expectedSubCategory": null
+    },
+    {
+      "date": "2026-04-08",
+      "amount": -89.99,
+      "description": "XFINITY AUTOPAY",
+      "merchant": "Xfinity",
+      "expectedCategory": "Utilities",
+      "expectedSubCategory": "Internet"
+    },
+    {
+      "date": "2026-04-09",
+      "amount": -45.00,
+      "description": "CONCERT TICKET - TICKETMASTER",
+      "merchant": "Ticketmaster",
+      "expectedCategory": "Entertainment",
+      "expectedSubCategory": "Events"
+    },
+    {
+      "date": "2026-04-10",
+      "amount": -31.20,
+      "description": "WHOLE FOODS MARKET #10212",
+      "merchant": "Whole Foods",
+      "expectedCategory": "Food",
+      "expectedSubCategory": "Groceries"
+    }
+  ]
+}

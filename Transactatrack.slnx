@@ -9,4 +9,7 @@
     <Project Path="tests/Transactatrack.IntegrationTests/Transactatrack.IntegrationTests.csproj" />
     <Project Path="tests/Transactatrack.UnitTests/Transactatrack.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Transactatrack.LlmBenchmark/Transactatrack.LlmBenchmark.csproj" />
+  </Folder>
 </Solution>

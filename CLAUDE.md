@@ -102,3 +102,17 @@ Enums (`AccountType`, `ImportBatchStatus`, etc.) are serialized as strings via a
 - Npgsql EF package tracks its own versioning — do not pin it to match EF Core's patch version (e.g. `10.0.7` doesn't exist for Npgsql; use `10.0.*`).
 - Angular Material uses M3 theming (`mat.define-theme`). Available palettes are `$azure-palette`, `$violet-palette`, `$rose-palette`, etc. — not the M2 `$indigo-palette`.
 - Material Icons are bundled via the `material-icons` npm package (listed in `angular.json` styles), not loaded from Google Fonts CDN.
+
+## Coding Conventions
+
+### `var`
+Only use `var` when the the variable is obvious given the right side of the assignment.
+
+```C#
+// Bad
+var id = transaction.TransactionId;
+
+// Good
+Guid id = transaction.TransactionId;
+var id = Guid.Parse("...");
+```
