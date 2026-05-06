@@ -104,6 +104,21 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
               </div>
             </mat-cell>
           </ng-container>
+          <ng-container matColumnDef="subCategory">
+            <mat-header-cell *matHeaderCellDef>Sub-Category</mat-header-cell>
+            <mat-cell *matCellDef="let t">
+              <mat-select
+                class="cat-select"
+                [value]="t.subCategoryId"
+                [disabled]="detail()?.batch?.status !== 'Pending' || !t.categoryId || subCategoriesFor(t.categoryId).length === 0"
+                (valueChange)="onSubCategoryChange(t, $event)">
+                <mat-option [value]="null">— none —</mat-option>
+                @for (s of subCategoriesFor(t.categoryId); track s.id) {
+                  <mat-option [value]="s.id">{{ s.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-cell>
+          </ng-container>
           <mat-header-row *matHeaderRowDef="columns"></mat-header-row>
           <mat-row *matRowDef="let row; columns: columns"></mat-row>
         </mat-table>
@@ -176,7 +191,7 @@ export class ImportPreviewPage {
   uploadPreview = signal<ImportPreviewDto | null>(null);
   loading = signal(true);
   categories = signal<CategoryDto[]>([]);
-  columns = ['date', 'description', 'amount', 'category'];
+  columns = ['date', 'description', 'amount', 'category', 'subCategory'];
   dupColumns = ['date', 'description', 'amount'];
 
   // Local mutable list of new rows (enables inline edits without full reload)
@@ -269,24 +284,43 @@ export class ImportPreviewPage {
     }
   }
 
+  subCategoriesFor(categoryId: string | null) {
+    if (!categoryId) return [];
+    return this.categories().find(c => c.id === categoryId)?.subCategories ?? [];
+  }
+
   onCategoryChange(row: ImportPreviewRowDto, categoryId: string | null) {
     if (!row.transactionId) return;
-    this.txSvc.updateCategory(row.transactionId, categoryId).subscribe({
-      next: updated => {
-        this.newRowsLocal.update(rows =>
-          rows.map(r => r === row
-            ? { ...r, categoryId: updated.categoryId, categorizationSource: updated.categorizationSource, needsReview: updated.needsReview }
-            : r)
-        );
-      },
+    // Changing category clears any prior sub-category — backend enforces this too.
+    this.txSvc.updateCategory(row.transactionId, categoryId, null).subscribe({
+      next: updated => this.applyUpdate(row, updated),
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
+  }
+
+  onSubCategoryChange(row: ImportPreviewRowDto, subCategoryId: string | null) {
+    if (!row.transactionId) return;
+    this.txSvc.updateCategory(row.transactionId, row.categoryId, subCategoryId).subscribe({
+      next: updated => this.applyUpdate(row, updated),
+      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+    });
+  }
+
+  private applyUpdate(row: ImportPreviewRowDto, updated: { categoryId: string | null; subCategoryId: string | null; categorizationSource: ImportPreviewRowDto['categorizationSource']; needsReview: boolean }) {
+    this.newRowsLocal.update(rows =>
+      rows.map(r => r === row
+        ? { ...r, categoryId: updated.categoryId, subCategoryId: updated.subCategoryId, categorizationSource: updated.categorizationSource, needsReview: updated.needsReview }
+        : r)
+    );
   }
 
   rerunRules() {
     const id = this.id();
     this.svc.rerunRules(id).subscribe({
-      next: () => this.load(id),
+      next: () => {
+        this.newRowsLocal.set([]);
+        this.load(id);
+      },
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
   }

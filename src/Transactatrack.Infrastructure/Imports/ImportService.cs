@@ -142,7 +142,7 @@ public class ImportService : IImportService
         // Dropped rows are flagged IsDuplicate=true; new rows IsDuplicate=false.
         var sample = newRows
             .Take(SamplePreviewSize)
-            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.CategorizationSource, t.NeedsReview, t.Id))
+            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.SubCategoryId, t.CategorizationSource, t.NeedsReview, t.Id))
             .Concat(duplicateRows
                 .Take(SamplePreviewSize)
                 .Select(r => new ImportPreviewRowDto(r.Date, r.PostedDate, r.Amount, r.Description, true)))
@@ -179,6 +179,18 @@ public class ImportService : IImportService
 
         if (batch.Status != ImportBatchStatus.Pending)
             throw new ImportException(409, $"Batch is in status {batch.Status}; only Pending batches can be discarded.");
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await _db.Transactions.Where(t => t.ImportBatchId == batchId).ExecuteDeleteAsync(ct);
+        _db.ImportBatches.Remove(batch);
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    public async Task DeleteAsync(Guid batchId, CancellationToken ct)
+    {
+        var batch = await _db.ImportBatches.FirstOrDefaultAsync(b => b.Id == batchId, ct)
+            ?? throw new ImportException(404, $"Import batch {batchId} not found.");
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         await _db.Transactions.Where(t => t.ImportBatchId == batchId).ExecuteDeleteAsync(ct);

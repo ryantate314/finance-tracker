@@ -10,6 +10,7 @@ public record UpdateCategoryRuleRequest(
     decimal? AmountMin,
     decimal? AmountMax,
     Guid TargetCategoryId,
+    Guid? TargetSubCategoryId,
     RuleScope Scope,
     Guid? AccountId,
     bool IsEnabled

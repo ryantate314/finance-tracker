@@ -42,7 +42,7 @@ public class RuleApplicationTests : IClassFixture<IntegrationTestFactory>
     private async Task SeedRule(HttpClient client, Guid categoryId, string pattern)
     {
         var req = new CreateCategoryRuleRequest(10, RuleMatchField.Description, RuleMatchType.Contains, pattern,
-            null, null, categoryId, RuleScope.Family, null, true);
+            null, null, categoryId, null, RuleScope.Family, null, true);
         (await client.PostAsJsonAsync("/api/category-rules", req)).EnsureSuccessStatusCode();
     }
 
@@ -121,7 +121,7 @@ public class RuleApplicationTests : IClassFixture<IntegrationTestFactory>
 
         var patchResp = await client.PatchAsJsonAsync(
             $"/api/transactions/{tx.Id}",
-            new UpdateTransactionCategoryRequest(categoryId));
+            new UpdateTransactionCategoryRequest(categoryId, null));
         patchResp.EnsureSuccessStatusCode();
 
         var updated = (await patchResp.Content.ReadFromJsonAsync<TransactionDto>(IntegrationTestFactory.JsonOpts))!;

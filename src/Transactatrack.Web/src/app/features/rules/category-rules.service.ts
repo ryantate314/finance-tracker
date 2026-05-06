@@ -15,6 +15,7 @@ export interface CategoryRuleDto {
   amountMin: number | null;
   amountMax: number | null;
   targetCategoryId: string;
+  targetSubCategoryId: string | null;
   scope: RuleScope;
   accountId: string | null;
   isEnabled: boolean;
@@ -28,6 +29,7 @@ export interface SaveCategoryRuleRequest {
   amountMin: number | null;
   amountMax: number | null;
   targetCategoryId: string;
+  targetSubCategoryId: string | null;
   scope: RuleScope;
   accountId: string | null;
   isEnabled: boolean;

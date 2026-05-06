@@ -51,7 +51,7 @@ public class ImportsController : ControllerBase
         var transactions = await _db.Transactions
             .Where(t => t.ImportBatchId == id)
             .OrderByDescending(t => t.Date)
-            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.CategorizationSource, t.NeedsReview, t.Id))
+            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.SubCategoryId, t.CategorizationSource, t.NeedsReview, t.Id))
             .ToListAsync(ct);
 
         var totalCount = transactions.Count;
@@ -103,6 +103,20 @@ public class ImportsController : ControllerBase
         try
         {
             await _importService.DiscardAsync(id, ct);
+            return NoContent();
+        }
+        catch (ImportException ex)
+        {
+            return StatusCode(ex.StatusCode, new { title = ex.Title, status = ex.StatusCode });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await _importService.DeleteAsync(id, ct);
             return NoContent();
         }
         catch (ImportException ex)

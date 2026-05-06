@@ -129,6 +129,7 @@ public class StubOllamaCategorizer : IOllamaCategorizer
     public async Task<IDictionary<Guid, LlmCategorizationResult>> SuggestAsync(
         IReadOnlyList<Transaction> transactions,
         IReadOnlyList<Category> categories,
+        IReadOnlyList<SubCategory> subCategories,
         CancellationToken ct)
     {
         while (PauseProcessing)
@@ -138,7 +139,7 @@ public class StubOllamaCategorizer : IOllamaCategorizer
         if (NextCategoryId == Guid.Empty) return result;
 
         foreach (var tx in transactions)
-            result[tx.Id] = new LlmCategorizationResult(NextCategoryId, 0.9m, "stub-model");
+            result[tx.Id] = new LlmCategorizationResult(NextCategoryId, null, 0.9m, "stub-model");
 
         return result;
     }

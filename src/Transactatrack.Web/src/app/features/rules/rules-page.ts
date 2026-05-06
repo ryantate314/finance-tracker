@@ -64,7 +64,7 @@ import { RuleEditDialog } from './rule-edit-dialog';
 
       <ng-container matColumnDef="category">
         <mat-header-cell *matHeaderCellDef>Category</mat-header-cell>
-        <mat-cell *matCellDef="let r">{{ categoryName(r.targetCategoryId) }}</mat-cell>
+        <mat-cell *matCellDef="let r">{{ targetLabel(r) }}</mat-cell>
       </ng-container>
 
       <ng-container matColumnDef="scope">
@@ -120,12 +120,17 @@ export class RulesPage {
   columns = ['drag', 'priority', 'match', 'pattern', 'category', 'scope', 'enabled', 'actions'];
 
   private categoriesMap = new Map<string, string>();
+  private subCategoriesMap = new Map<string, string>();
   private accountsMap = new Map<string, string>();
 
   constructor() {
     this.load();
-    this.categoriesSvc.list().pipe(takeUntilDestroyed()).subscribe(cats =>
-      cats.forEach(c => this.categoriesMap.set(c.id, c.name)));
+    this.categoriesSvc.list().pipe(takeUntilDestroyed()).subscribe(cats => {
+      cats.forEach(c => {
+        this.categoriesMap.set(c.id, c.name);
+        c.subCategories.forEach(s => this.subCategoriesMap.set(s.id, s.name));
+      });
+    });
     this.accountsSvc.list().pipe(takeUntilDestroyed()).subscribe(accts =>
       accts.forEach(a => this.accountsMap.set(a.id, a.name)));
   }
@@ -138,7 +143,13 @@ export class RulesPage {
   }
 
   categoryName(id: string) { return this.categoriesMap.get(id) ?? id; }
+  subCategoryName(id: string) { return this.subCategoriesMap.get(id) ?? id; }
   accountName(id: string) { return this.accountsMap.get(id) ?? id; }
+
+  targetLabel(r: CategoryRuleDto): string {
+    const cat = this.categoryName(r.targetCategoryId);
+    return r.targetSubCategoryId ? `${cat} › ${this.subCategoryName(r.targetSubCategoryId)}` : cat;
+  }
 
   openNew() {
     this.dialog.open(RuleEditDialog, { data: {} }).afterClosed().subscribe(req => {

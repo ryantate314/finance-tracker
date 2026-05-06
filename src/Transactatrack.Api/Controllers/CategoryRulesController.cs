@@ -34,6 +34,9 @@ public class CategoryRulesController : ControllerBase
             request.AmountMin, request.AmountMax, request.Scope, request.AccountId) is { } err)
             return BadRequest(new { title = err, status = 400 });
 
+        if (await SubCategoryParentError(request.TargetCategoryId, request.TargetSubCategoryId, ct) is { } subErr)
+            return BadRequest(new { title = subErr, status = 400 });
+
         var rule = new CategoryRule
         {
             Priority = request.Priority,
@@ -43,6 +46,7 @@ public class CategoryRulesController : ControllerBase
             AmountMin = request.AmountMin,
             AmountMax = request.AmountMax,
             TargetCategoryId = request.TargetCategoryId,
+            TargetSubCategoryId = request.TargetSubCategoryId,
             Scope = request.Scope,
             AccountId = request.AccountId,
             IsEnabled = request.IsEnabled,
@@ -70,6 +74,9 @@ public class CategoryRulesController : ControllerBase
             request.AmountMin, request.AmountMax, request.Scope, request.AccountId) is { } err)
             return BadRequest(new { title = err, status = 400 });
 
+        if (await SubCategoryParentError(request.TargetCategoryId, request.TargetSubCategoryId, ct) is { } subErr)
+            return BadRequest(new { title = subErr, status = 400 });
+
         rule.Priority = request.Priority;
         rule.MatchField = request.MatchField;
         rule.MatchType = request.MatchType;
@@ -77,6 +84,7 @@ public class CategoryRulesController : ControllerBase
         rule.AmountMin = request.AmountMin;
         rule.AmountMax = request.AmountMax;
         rule.TargetCategoryId = request.TargetCategoryId;
+        rule.TargetSubCategoryId = request.TargetSubCategoryId;
         rule.Scope = request.Scope;
         rule.AccountId = request.AccountId;
         rule.IsEnabled = request.IsEnabled;
@@ -136,7 +144,15 @@ public class CategoryRulesController : ControllerBase
         return null;
     }
 
+    private async Task<string?> SubCategoryParentError(Guid categoryId, Guid? subCategoryId, CancellationToken ct)
+    {
+        if (subCategoryId is null) return null;
+        var belongs = await _db.SubCategories
+            .AnyAsync(s => s.Id == subCategoryId.Value && s.CategoryId == categoryId, ct);
+        return belongs ? null : "TargetSubCategoryId must belong to TargetCategoryId.";
+    }
+
     private static CategoryRuleDto ToDto(CategoryRule r) => new(
         r.Id, r.Priority, r.MatchField, r.MatchType, r.Pattern,
-        r.AmountMin, r.AmountMax, r.TargetCategoryId, r.Scope, r.AccountId, r.IsEnabled);
+        r.AmountMin, r.AmountMax, r.TargetCategoryId, r.TargetSubCategoryId, r.Scope, r.AccountId, r.IsEnabled);
 }

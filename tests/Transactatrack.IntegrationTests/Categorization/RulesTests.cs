@@ -40,7 +40,7 @@ public class RulesTests : IClassFixture<IntegrationTestFactory>
     {
         var (client, _, categoryId, _) = await SetupAsync();
         var request = new CreateCategoryRuleRequest(10, RuleMatchField.Description, RuleMatchType.Contains, "AMAZON",
-            null, null, categoryId, RuleScope.Family, null, true);
+            null, null, categoryId, null, RuleScope.Family, null, true);
 
         var resp = await client.PostAsJsonAsync("/api/category-rules", request);
         resp.EnsureSuccessStatusCode();
@@ -55,7 +55,7 @@ public class RulesTests : IClassFixture<IntegrationTestFactory>
     {
         var (client, _, categoryId, _) = await SetupAsync();
         var request = new CreateCategoryRuleRequest(10, RuleMatchField.Description, RuleMatchType.Regex, "[unclosed",
-            null, null, categoryId, RuleScope.Family, null, true);
+            null, null, categoryId, null, RuleScope.Family, null, true);
 
         var resp = await client.PostAsJsonAsync("/api/category-rules", request);
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
@@ -66,7 +66,7 @@ public class RulesTests : IClassFixture<IntegrationTestFactory>
     {
         var (client, _, categoryId, _) = await SetupAsync();
         var request = new CreateCategoryRuleRequest(10, RuleMatchField.AmountRange, RuleMatchType.Contains, "",
-            null, null, categoryId, RuleScope.Family, null, true);
+            null, null, categoryId, null, RuleScope.Family, null, true);
 
         var resp = await client.PostAsJsonAsync("/api/category-rules", request);
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
@@ -77,7 +77,7 @@ public class RulesTests : IClassFixture<IntegrationTestFactory>
     {
         var (client, _, categoryId, _) = await SetupAsync();
         var request = new CreateCategoryRuleRequest(10, RuleMatchField.Description, RuleMatchType.Contains, "AMAZON",
-            null, null, categoryId, RuleScope.Account, null, true);
+            null, null, categoryId, null, RuleScope.Account, null, true);
 
         var resp = await client.PostAsJsonAsync("/api/category-rules", request);
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
@@ -122,7 +122,7 @@ public class RulesTests : IClassFixture<IntegrationTestFactory>
     private static async Task<CategoryRuleDto> CreateRule(HttpClient client, Guid categoryId, string pattern, int priority)
     {
         var request = new CreateCategoryRuleRequest(priority, RuleMatchField.Description, RuleMatchType.Contains, pattern,
-            null, null, categoryId, RuleScope.Family, null, true);
+            null, null, categoryId, null, RuleScope.Family, null, true);
         var resp = await client.PostAsJsonAsync("/api/category-rules", request);
         resp.EnsureSuccessStatusCode();
         return (await resp.Content.ReadFromJsonAsync<CategoryRuleDto>(IntegrationTestFactory.JsonOpts))!;

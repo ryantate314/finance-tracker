@@ -26,6 +26,7 @@ export interface ImportPreviewRowDto {
   description: string;
   isDuplicate: boolean;
   categoryId: string | null;
+  subCategoryId: string | null;
   categorizationSource: CategorizationSource;
   needsReview: boolean;
   transactionId: string | null;
@@ -66,6 +67,7 @@ export class ImportsService {
 
   commit(id: string) { return this.http.post<void>(`${this.base}/${id}/commit`, null); }
   discard(id: string) { return this.http.post<void>(`${this.base}/${id}/discard`, null); }
+  delete(id: string) { return this.http.delete<void>(`${this.base}/${id}`); }
   rerunRules(id: string) { return this.http.post<void>(`${this.base}/${id}/rerun-rules`, null); }
   suggestLlm(id: string) { return this.http.post<void>(`${this.base}/${id}/suggest-llm`, null); }
 }

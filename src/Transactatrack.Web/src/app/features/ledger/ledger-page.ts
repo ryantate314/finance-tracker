@@ -121,6 +121,21 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
           </div>
         </mat-cell>
       </ng-container>
+      <ng-container matColumnDef="subCategory">
+        <mat-header-cell *matHeaderCellDef>Sub-Category</mat-header-cell>
+        <mat-cell *matCellDef="let t">
+          <mat-select
+            class="cat-select"
+            [value]="t.subCategoryId"
+            [disabled]="!t.categoryId || subCategoriesFor(t.categoryId).length === 0"
+            (valueChange)="onSubCategoryChange(t, $event)">
+            <mat-option [value]="null">— none —</mat-option>
+            @for (s of subCategoriesFor(t.categoryId); track s.id) {
+              <mat-option [value]="s.id">{{ s.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-cell>
+      </ng-container>
       <ng-container matColumnDef="amount">
         <mat-header-cell *matHeaderCellDef class="right">Amount</mat-header-cell>
         <mat-cell *matCellDef="let t" class="right" [class.debit]="t.amount < 0">
@@ -173,7 +188,7 @@ export class LedgerPage {
 
   accounts = signal<AccountDto[]>([]);
   categories = signal<CategoryDto[]>([]);
-  columns = ['date', 'description', 'account', 'category', 'amount'];
+  columns = ['date', 'description', 'account', 'category', 'subCategory', 'amount'];
 
   private accountsById = computed(() =>
     new Map(this.accounts().map(a => [a.id, a.name])));
@@ -239,13 +254,26 @@ export class LedgerPage {
 
   accountName(id: string): string { return this.accountsById().get(id) ?? id; }
 
+  subCategoriesFor(categoryId: string | null) {
+    if (!categoryId) return [];
+    return this.categories().find(c => c.id === categoryId)?.subCategories ?? [];
+  }
+
   onCategoryChange(tx: TransactionDto, categoryId: string | null) {
-    this.txSvc.updateCategory(tx.id, categoryId).subscribe({
-      next: updated => {
-        this.result.update(r => r
-          ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
-          : r);
-      },
+    // Changing category clears any prior sub-category.
+    this.txSvc.updateCategory(tx.id, categoryId, null).subscribe({
+      next: updated => this.result.update(r => r
+        ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
+        : r),
+      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+    });
+  }
+
+  onSubCategoryChange(tx: TransactionDto, subCategoryId: string | null) {
+    this.txSvc.updateCategory(tx.id, tx.categoryId, subCategoryId).subscribe({
+      next: updated => this.result.update(r => r
+        ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
+        : r),
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
   }

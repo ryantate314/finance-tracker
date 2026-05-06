@@ -11,6 +11,7 @@ public record TransactionDto(
     string Description,
     string? Merchant,
     Guid? CategoryId,
+    Guid? SubCategoryId,
     bool IsTransfer,
     Guid? TransferGroupId,
     Guid ImportBatchId,

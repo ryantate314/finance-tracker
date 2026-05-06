@@ -9,7 +9,7 @@ public class RuleEngine : IRuleEngine
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
 
-    public (Guid CategoryId, Guid RuleId)? Evaluate(Transaction tx, IReadOnlyList<CategoryRule> rules)
+    public (Guid CategoryId, Guid? SubCategoryId, Guid RuleId)? Evaluate(Transaction tx, IReadOnlyList<CategoryRule> rules)
     {
         foreach (var rule in rules.Where(r => r.IsEnabled).OrderBy(r => r.Priority))
         {
@@ -17,7 +17,7 @@ public class RuleEngine : IRuleEngine
                 continue;
 
             if (Matches(tx, rule))
-                return (rule.TargetCategoryId, rule.Id);
+                return (rule.TargetCategoryId, rule.TargetSubCategoryId, rule.Id);
         }
         return null;
     }

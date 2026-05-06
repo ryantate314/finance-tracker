@@ -12,6 +12,7 @@ public class Transaction : FamilyScopedEntity
     public string Description { get; set; } = string.Empty;
     public string? Merchant { get; set; }
     public Guid? CategoryId { get; set; }
+    public Guid? SubCategoryId { get; set; }
     public bool IsTransfer { get; set; }
     public Guid? TransferGroupId { get; set; }
     public Guid ImportBatchId { get; set; }

@@ -196,6 +196,30 @@ public class RuleEngineTests
     }
 
     [Fact]
+    public void Evaluate_RuleWithSubCategory_ReturnsBothIds()
+    {
+        var subCatId = Guid.NewGuid();
+        var tx = MakeTx("SHELL GAS");
+        var rule = MakeRule(pattern: "SHELL");
+        rule.TargetSubCategoryId = subCatId;
+        var result = _engine.Evaluate(tx, [rule]);
+        Assert.NotNull(result);
+        Assert.Equal(CategoryA, result.Value.CategoryId);
+        Assert.Equal(subCatId, result.Value.SubCategoryId);
+        Assert.Equal(rule.Id, result.Value.RuleId);
+    }
+
+    [Fact]
+    public void Evaluate_RuleWithoutSubCategory_ReturnsNullSubCategoryId()
+    {
+        var tx = MakeTx("AMAZON.COM PURCHASE");
+        var rule = MakeRule(pattern: "amazon");
+        var result = _engine.Evaluate(tx, [rule]);
+        Assert.NotNull(result);
+        Assert.Null(result.Value.SubCategoryId);
+    }
+
+    [Fact]
     public void IsValidRegex_ValidPattern_ReturnsTrue()
     {
         Assert.True(RuleEngine.IsValidRegex(@"UBER\s+EATS"));

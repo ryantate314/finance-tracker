@@ -96,6 +96,7 @@ public class TransactionsController : ControllerBase
                 t.Description,
                 t.Merchant,
                 t.CategoryId,
+                t.SubCategoryId,
                 t.IsTransfer,
                 t.TransferGroupId,
                 t.ImportBatchId,
@@ -119,7 +120,17 @@ public class TransactionsController : ControllerBase
         var tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Id == id, ct);
         if (tx is null) return NotFound();
 
+        var subCategoryId = request.CategoryId is null ? null : request.SubCategoryId;
+        if (subCategoryId is not null)
+        {
+            var belongs = await _db.SubCategories
+                .AnyAsync(s => s.Id == subCategoryId.Value && s.CategoryId == request.CategoryId!.Value, ct);
+            if (!belongs)
+                return BadRequest(new { title = "SubCategoryId must belong to CategoryId.", status = 400 });
+        }
+
         tx.CategoryId = request.CategoryId;
+        tx.SubCategoryId = subCategoryId;
         tx.CategorizationSource = CategorizationSource.Manual;
         tx.NeedsReview = false;
         tx.AppliedRuleId = null;
@@ -129,7 +140,7 @@ public class TransactionsController : ControllerBase
 
         return Ok(new TransactionDto(
             tx.Id, tx.AccountId, tx.Date, tx.PostedDate, tx.Amount,
-            tx.Description, tx.Merchant, tx.CategoryId, tx.IsTransfer,
+            tx.Description, tx.Merchant, tx.CategoryId, tx.SubCategoryId, tx.IsTransfer,
             tx.TransferGroupId, tx.ImportBatchId, tx.CreatedUtc,
             tx.CategorizationSource, tx.NeedsReview, tx.LlmConfidence, tx.AppliedRuleId));
     }

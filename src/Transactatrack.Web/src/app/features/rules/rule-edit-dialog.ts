@@ -76,6 +76,18 @@ export interface RuleEditDialogData {
           </mat-select>
         </mat-form-field>
 
+        @if (subCategoriesForSelected().length > 0) {
+          <mat-form-field appearance="outline">
+            <mat-label>Target Sub-Category</mat-label>
+            <mat-select formControlName="targetSubCategoryId">
+              <mat-option [value]="null">— none —</mat-option>
+              @for (s of subCategoriesForSelected(); track s.id) {
+                <mat-option [value]="s.id">{{ s.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
+
         <div class="scope-row">
           <label>Scope:</label>
           <mat-radio-group formControlName="scope" class="radio-group">
@@ -129,6 +141,7 @@ export class RuleEditDialog {
     amountMin: new FormControl<number | null>(this.data.rule?.amountMin ?? null),
     amountMax: new FormControl<number | null>(this.data.rule?.amountMax ?? null),
     targetCategoryId: new FormControl(this.data.rule?.targetCategoryId ?? '', Validators.required),
+    targetSubCategoryId: new FormControl<string | null>(this.data.rule?.targetSubCategoryId ?? null),
     scope: new FormControl<RuleScope>(this.data.rule?.scope ?? 'Family', Validators.required),
     accountId: new FormControl<string | null>(this.data.rule?.accountId ?? null),
     isEnabled: new FormControl(this.data.rule?.isEnabled ?? true),
@@ -142,6 +155,27 @@ export class RuleEditDialog {
     this.form.controls.scope.valueChanges,
     { initialValue: this.data.rule?.scope ?? 'Family' }
   );
+
+  private targetCategoryId = toSignal(
+    this.form.controls.targetCategoryId.valueChanges,
+    { initialValue: this.data.rule?.targetCategoryId ?? '' }
+  );
+
+  subCategoriesForSelected = computed(() => {
+    const id = this.targetCategoryId();
+    if (!id) return [];
+    return this.categories().find(c => c.id === id)?.subCategories ?? [];
+  });
+
+  constructor() {
+    // Clear sub-category when its parent category changes away from it.
+    effect(() => {
+      const cur = this.form.controls.targetSubCategoryId.value;
+      if (!cur) return;
+      const valid = this.subCategoriesForSelected().some(s => s.id === cur);
+      if (!valid) this.form.controls.targetSubCategoryId.setValue(null);
+    });
+  }
 
   get isTextMatchVal() { return this.form.controls.matchField.value !== 'AmountRange'; }
   get isAccountScopeVal() { return this.form.controls.scope.value === 'Account'; }
@@ -157,6 +191,7 @@ export class RuleEditDialog {
       amountMin: v.matchField === 'AmountRange' ? v.amountMin : null,
       amountMax: v.matchField === 'AmountRange' ? v.amountMax : null,
       targetCategoryId: v.targetCategoryId!,
+      targetSubCategoryId: v.targetSubCategoryId ?? null,
       scope: v.scope!,
       accountId: v.scope === 'Account' ? v.accountId : null,
       isEnabled: v.isEnabled ?? true,

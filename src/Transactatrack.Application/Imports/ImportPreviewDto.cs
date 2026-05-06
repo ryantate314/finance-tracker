@@ -21,6 +21,7 @@ public record ImportPreviewRowDto(
     string Description,
     bool IsDuplicate,
     Guid? CategoryId = null,
+    Guid? SubCategoryId = null,
     CategorizationSource CategorizationSource = CategorizationSource.Manual,
     bool NeedsReview = false,
     Guid? TransactionId = null

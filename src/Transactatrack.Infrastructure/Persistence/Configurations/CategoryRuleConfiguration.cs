@@ -26,6 +26,12 @@ internal class CategoryRuleConfiguration : IEntityTypeConfiguration<CategoryRule
             .HasForeignKey(r => r.TargetCategoryId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne<SubCategory>()
+            .WithMany()
+            .HasForeignKey(r => r.TargetSubCategoryId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasOne<Account>()
             .WithMany()
             .HasForeignKey(r => r.AccountId)

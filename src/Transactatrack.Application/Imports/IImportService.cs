@@ -5,4 +5,5 @@ public interface IImportService
     Task<ImportPreviewDto> UploadAsync(Guid accountId, Stream csv, string filename, CancellationToken ct);
     Task CommitAsync(Guid batchId, CancellationToken ct);
     Task DiscardAsync(Guid batchId, CancellationToken ct);
+    Task DeleteAsync(Guid batchId, CancellationToken ct);
 }

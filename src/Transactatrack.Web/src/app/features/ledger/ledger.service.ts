@@ -13,6 +13,7 @@ export interface TransactionDto {
   description: string;
   merchant: string | null;
   categoryId: string | null;
+  subCategoryId: string | null;
   isTransfer: boolean;
   transferGroupId: string | null;
   importBatchId: string;

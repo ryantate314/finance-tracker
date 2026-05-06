@@ -61,6 +61,7 @@ public class CategorizationService : ICategorizationService
             if (result is null) continue;
 
             tx.CategoryId = result.Value.CategoryId;
+            tx.SubCategoryId = result.Value.SubCategoryId;
             tx.CategorizationSource = CategorizationSource.Rule;
             tx.AppliedRuleId = result.Value.RuleId;
             tx.NeedsReview = false;
@@ -105,13 +106,14 @@ public class CategorizationService : ICategorizationService
             try
             {
                 var categories = await db.Categories.ToListAsync();
+                var subCategories = await db.SubCategories.ToListAsync();
                 var now = DateTime.UtcNow;
 
                 for (var i = 0; i < uncategorized.Count; i += LlmBatchSize)
                 {
                     var batchRows = uncategorized.Skip(i).Take(LlmBatchSize).ToList();
 
-                    var suggestions = await ollama.SuggestAsync(batchRows, categories, CancellationToken.None);
+                    var suggestions = await ollama.SuggestAsync(batchRows, categories, subCategories, CancellationToken.None);
 
                     foreach (var tx in batchRows)
                     {
@@ -121,6 +123,7 @@ public class CategorizationService : ICategorizationService
                         if (dbTx is null || dbTx.CategorizationSource == CategorizationSource.Manual) continue;
 
                         dbTx.CategoryId = suggestion.CategoryId;
+                        dbTx.SubCategoryId = suggestion.SubCategoryId;
                         dbTx.CategorizationSource = CategorizationSource.Llm;
                         dbTx.LlmConfidence = suggestion.Confidence;
                         dbTx.LlmModel = suggestion.Model;
@@ -173,13 +176,14 @@ public class CategorizationService : ICategorizationService
         var now = DateTime.UtcNow;
         foreach (var tx in transactions)
         {
-            // Preserve Manual categorizations
-            if (tx.CategorizationSource == CategorizationSource.Manual) continue;
+            // Preserve explicitly manual categorizations; uncategorized rows (Manual + null CategoryId) may be re-evaluated.
+            if (tx.CategorizationSource == CategorizationSource.Manual && tx.CategoryId != null) continue;
 
             var result = _ruleEngine.Evaluate(tx, rules);
             if (result is null) continue;
 
             tx.CategoryId = result.Value.CategoryId;
+            tx.SubCategoryId = result.Value.SubCategoryId;
             tx.CategorizationSource = CategorizationSource.Rule;
             tx.AppliedRuleId = result.Value.RuleId;
             tx.NeedsReview = false;

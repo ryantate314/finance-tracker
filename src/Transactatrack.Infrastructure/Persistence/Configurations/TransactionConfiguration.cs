@@ -47,6 +47,12 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne<SubCategory>()
+            .WithMany()
+            .HasForeignKey(t => t.SubCategoryId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasOne<CategoryRule>()
             .WithMany()
             .HasForeignKey(t => t.AppliedRuleId)
