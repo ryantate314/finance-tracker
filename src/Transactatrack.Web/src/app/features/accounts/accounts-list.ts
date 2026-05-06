@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { extractErrorMessage } from '../../core/api/api-error';
+import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { AccountDto, AccountsService, CreateAccountRequest } from './accounts.service';
 import { AccountEditDialog } from './account-edit-dialog';
 
@@ -43,15 +44,22 @@ import { AccountEditDialog } from './account-edit-dialog';
   `,
   styles: ['.page-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; }'],
 })
-export class AccountsList implements OnInit {
+export class AccountsList {
   private svc = inject(AccountsService);
   private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
+  private familyCtx = inject(FamilyContextService);
 
   accounts = signal<AccountDto[]>([]);
   columns = ['name', 'institution', 'accountType', 'actions'];
 
-  ngOnInit() { this.load(); }
+  constructor() {
+    effect(() => {
+      const id = this.familyCtx.activeFamilyId();
+      if (!id) return;
+      this.load();
+    });
+  }
 
   load() {
     this.svc.list().subscribe(a => this.accounts.set(a));

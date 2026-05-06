@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { extractErrorMessage } from '../../core/api/api-error';
+import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { OwnerDto, OwnersService } from './owners.service';
 import { OwnerEditDialog } from './owner-edit-dialog';
 
@@ -35,15 +36,22 @@ import { OwnerEditDialog } from './owner-edit-dialog';
   `,
   styles: ['.page-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; }'],
 })
-export class OwnersList implements OnInit {
+export class OwnersList {
   private svc = inject(OwnersService);
   private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
+  private familyCtx = inject(FamilyContextService);
 
   owners = signal<OwnerDto[]>([]);
   columns = ['name', 'actions'];
 
-  ngOnInit() { this.load(); }
+  constructor() {
+    effect(() => {
+      const id = this.familyCtx.activeFamilyId();
+      if (!id) return;
+      this.load();
+    });
+  }
 
   load() {
     this.svc.list().subscribe(o => this.owners.set(o));

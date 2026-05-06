@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatExpansionModule } from '@angular/material/expansion';
@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { extractErrorMessage } from '../../core/api/api-error';
+import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { CategoriesService, CategoryDto, SubCategoryDto } from './categories.service';
 
 @Component({
@@ -110,9 +111,10 @@ import { CategoriesService, CategoryDto, SubCategoryDto } from './categories.ser
     .add-row { padding-top: 8px; }
   `],
 })
-export class CategoriesPage implements OnInit {
+export class CategoriesPage {
   private svc = inject(CategoriesService);
   private snack = inject(MatSnackBar);
+  private familyCtx = inject(FamilyContextService);
 
   categories = signal<CategoryDto[]>([]);
 
@@ -128,7 +130,13 @@ export class CategoriesPage implements OnInit {
   addingSubForCategoryId = signal<string | null>(null);
   newSubCtrl = new FormControl('', [Validators.required, Validators.maxLength(200)]);
 
-  ngOnInit() { this.load(); }
+  constructor() {
+    effect(() => {
+      const id = this.familyCtx.activeFamilyId();
+      if (!id) return;
+      this.load();
+    });
+  }
 
   private load() {
     this.svc.list().subscribe(c => this.categories.set(c));

@@ -14,8 +14,13 @@
 }
 
 .family-select {
-  color: white;
-  min-width: 160px;
+  width: 180px;
+  flex: 0 0 auto;
+  --mat-select-enabled-trigger-text-color: currentColor;
+  --mat-select-placeholder-text-color: currentColor;
+  --mat-select-enabled-arrow-color: currentColor;
+  --mat-select-trigger-text-size: 0.875rem;
+  --mat-select-trigger-text-line-height: 1.5;
 }
 
 .active-link {
