@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
+using Transactatrack.Application.Categorization;
 using Transactatrack.Infrastructure.Persistence;
 
 namespace Transactatrack.IntegrationTests;
@@ -16,9 +17,11 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
         Converters = { new JsonStringEnumConverter() },
     };
 
-
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
         .Build();
+
+    // Optional stub for IOllamaCategorizer — set before first client creation.
+    public IOllamaCategorizer? OllamaCategorizerStub { get; set; }
 
     public async Task InitializeAsync()
     {
@@ -39,6 +42,15 @@ public class IntegrationTestFactory : WebApplicationFactory<Program>, IAsyncLife
 
             services.AddDbContext<AppDbContext>(opt =>
                 opt.UseNpgsql(_postgres.GetConnectionString()));
+
+            if (OllamaCategorizerStub is not null)
+            {
+                var ollamaDescriptor = services.SingleOrDefault(
+                    d => d.ServiceType == typeof(IOllamaCategorizer));
+                if (ollamaDescriptor is not null)
+                    services.Remove(ollamaDescriptor);
+                services.AddScoped(_ => OllamaCategorizerStub);
+            }
         });
 
         builder.UseEnvironment("Test");

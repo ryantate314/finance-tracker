@@ -1,8 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { CategorizationSource } from '../ledger/ledger.service';
 
 export type ImportBatchStatus = 'Pending' | 'Committed' | 'Discarded';
+export type LlmCategorizationStatus = 'None' | 'Running' | 'Complete' | 'Failed';
 
 export interface ImportBatchDto {
   id: string;
@@ -12,6 +14,9 @@ export interface ImportBatchDto {
   uploadedUtc: string;
   status: ImportBatchStatus;
   transactionCount: number;
+  llmStatus: LlmCategorizationStatus;
+  llmRowsTotal: number;
+  llmRowsDone: number;
 }
 
 export interface ImportPreviewRowDto {
@@ -20,6 +25,10 @@ export interface ImportPreviewRowDto {
   amount: number;
   description: string;
   isDuplicate: boolean;
+  categoryId: string | null;
+  categorizationSource: CategorizationSource;
+  needsReview: boolean;
+  transactionId: string | null;
 }
 
 export interface ImportPreviewDto {
@@ -57,4 +66,6 @@ export class ImportsService {
 
   commit(id: string) { return this.http.post<void>(`${this.base}/${id}/commit`, null); }
   discard(id: string) { return this.http.post<void>(`${this.base}/${id}/discard`, null); }
+  rerunRules(id: string) { return this.http.post<void>(`${this.base}/${id}/rerun-rules`, null); }
+  suggestLlm(id: string) { return this.http.post<void>(`${this.base}/${id}/suggest-llm`, null); }
 }

@@ -25,6 +25,7 @@ public class TransactionsController : ControllerBase
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] string? q,
+        [FromQuery] bool? needsReview,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = DefaultPageSize,
         CancellationToken ct = default)
@@ -76,6 +77,9 @@ public class TransactionsController : ControllerBase
                 (t.Merchant != null && EF.Functions.ILike(t.Merchant, pattern, @"\")));
         }
 
+        if (needsReview.HasValue)
+            query = query.Where(t => t.NeedsReview == needsReview.Value);
+
         var totalCount = await query.CountAsync(ct);
 
         var items = await query
@@ -95,10 +99,39 @@ public class TransactionsController : ControllerBase
                 t.IsTransfer,
                 t.TransferGroupId,
                 t.ImportBatchId,
-                t.CreatedUtc))
+                t.CreatedUtc,
+                t.CategorizationSource,
+                t.NeedsReview,
+                t.LlmConfidence,
+                t.AppliedRuleId))
             .ToListAsync(ct);
 
         return Ok(new PagedResult<TransactionDto>(items, totalCount, page, pageSize));
+    }
+
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<TransactionDto>> UpdateCategory(
+        Guid id,
+        UpdateTransactionCategoryRequest request,
+        CancellationToken ct)
+    {
+        // No Status filter — both Pending and Committed rows can be categorized.
+        var tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Id == id, ct);
+        if (tx is null) return NotFound();
+
+        tx.CategoryId = request.CategoryId;
+        tx.CategorizationSource = CategorizationSource.Manual;
+        tx.NeedsReview = false;
+        tx.AppliedRuleId = null;
+        tx.CategorizedUtc = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new TransactionDto(
+            tx.Id, tx.AccountId, tx.Date, tx.PostedDate, tx.Amount,
+            tx.Description, tx.Merchant, tx.CategoryId, tx.IsTransfer,
+            tx.TransferGroupId, tx.ImportBatchId, tx.CreatedUtc,
+            tx.CategorizationSource, tx.NeedsReview, tx.LlmConfidence, tx.AppliedRuleId));
     }
 
     private static List<Guid> ParseGuidList(string? csv)

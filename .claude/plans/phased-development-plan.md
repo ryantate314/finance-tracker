@@ -94,7 +94,9 @@ transactatrack/
 
 ---
 
-## Phase 3 — Rule-Based Categorization + Ollama Fallback
+## Phase 3 — Rule-Based Categorization + Ollama Fallback ✅ Complete
+
+**Completed (2026-05-06):** `CategorizationSource` enum (`Manual`/`Rule`/`Llm`), `LlmCategorizationStatus` enum, and `Phase3CategorizationFields` migration applied — adds `CategorizationSource`, `NeedsReview`, `LlmConfidence`, `LlmModel`, `AppliedRuleId` (FK → CategoryRules, ON DELETE SET NULL), `CategorizedUtc` to Transactions; `LlmStatus`/`LlmRowsTotal`/`LlmRowsDone` to ImportBatches; `AmountMin`/`AmountMax` to CategoryRules. `RuleEngine` in `Infrastructure/Categorization/` (priority order, case-insensitive contains/equals, 100ms regex timeout, AmountRange via `Math.Abs`). `CategorizationService` runs rules synchronously at upload time and starts background LLM work via `IServiceScopeFactory` + fire-and-forget `Task.Run`; persists progress on `ImportBatch` for polling. `OllamaCategorizer` wraps `OllamaClient.GenerateJsonAsync` (new `POST /api/generate` method) with `SemaphoreSlim(1,1)`, 5-row batches, integer-ID prompts, and validates JSON response. `CategoryRulesController` with CRUD + bulk reorder + regex/AmountRange validation (400). `TransactionsController` gains `PATCH /api/transactions/{id}` (no status filter — works for Pending + Committed) and `needsReview` filter. `ImportsController` drops 50-row limit on detail, adds `POST /rerun-rules` and `POST /suggest-llm` (202 Accepted). Angular: `category-rules.service.ts`, `rules-page.ts` (CDK drag-drop), `rule-edit-dialog.ts`, `transactions.service.ts` (PATCH). Import preview page gains Category `mat-select` per row (inline PATCH), AI/Rule source chips, "Re-run Rules" + "Suggest with AI" buttons, `mat-progress-bar` polling. Ledger page gains Category `mat-select` per row, "Needs review" `mat-checkbox` filter. `/rules` route + "Rules" nav link. Tests: 16 unit (35 total), 12 new integration (26 total) including `RulesTests`, `RuleApplicationTests`, `LlmTests` with stub `IOllamaCategorizer`.
 
 **Goal**: New imports come in pre-categorized; un-matched rows get an LLM suggestion.
 
@@ -159,10 +161,10 @@ transactatrack/
 
 - `src/Transactatrack.Domain/Entities/*.cs` — Family, Owner, Account, Transaction, Category, CategoryRule, ImportBatch
 - `src/Transactatrack.Infrastructure/Persistence/AppDbContext.cs` — EF Core + family query filter
-- `src/Transactatrack.Infrastructure/Csv/IBankCsvParser.cs` + first concrete parser
-- `src/Transactatrack.Infrastructure/Llm/OllamaClient.cs`
-- `src/Transactatrack.Application/Categorization/RuleEngine.cs`
-- `src/Transactatrack.Application/Transfers/TransferMatcher.cs`
+- `src/Transactatrack.Application/Imports/IBankCsvParser.cs` + `src/Transactatrack.Infrastructure/Imports/Parsers/ChaseParser.cs`
+- `src/Transactatrack.Infrastructure/Llm/OllamaClient.cs` (GetTagsAsync + GenerateJsonAsync)
+- `src/Transactatrack.Infrastructure/Categorization/RuleEngine.cs` + `CategorizationService.cs` + `OllamaCategorizer.cs`
+- `src/Transactatrack.Application/Transfers/TransferMatcher.cs` (Phase 4 — not yet created)
 - `src/Transactatrack.Api/Controllers/*.cs` — Imports, Transactions, Categories, Rules, Reports, Families/Owners/Accounts
 - `src/Transactatrack.Web/src/app/**` — family switcher, import wizard, ledger, rules, dashboard
 - `deploy/docker-compose.dev.yml`, `deploy/docker-compose.prod.yml`, `deploy/Dockerfile.api`, `deploy/Dockerfile.web`

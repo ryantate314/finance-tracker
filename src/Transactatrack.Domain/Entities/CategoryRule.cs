@@ -9,6 +9,8 @@ public class CategoryRule : FamilyScopedEntity
     public RuleMatchField MatchField { get; set; }
     public RuleMatchType MatchType { get; set; }
     public string Pattern { get; set; } = string.Empty;
+    public decimal? AmountMin { get; set; }
+    public decimal? AmountMax { get; set; }
     public Guid TargetCategoryId { get; set; }
     public RuleScope Scope { get; set; }
     public Guid? AccountId { get; set; }

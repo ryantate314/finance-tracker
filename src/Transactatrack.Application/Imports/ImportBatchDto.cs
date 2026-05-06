@@ -9,5 +9,8 @@ public record ImportBatchDto(
     string OriginalFilename,
     DateTime UploadedUtc,
     ImportBatchStatus Status,
-    int TransactionCount
+    int TransactionCount,
+    LlmCategorizationStatus LlmStatus = LlmCategorizationStatus.None,
+    int LlmRowsTotal = 0,
+    int LlmRowsDone = 0
 );

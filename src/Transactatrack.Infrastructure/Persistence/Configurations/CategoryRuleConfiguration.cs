@@ -11,6 +11,8 @@ internal class CategoryRuleConfiguration : IEntityTypeConfiguration<CategoryRule
         builder.HasKey(r => r.Id);
         builder.Property(r => r.Id).ValueGeneratedOnAdd();
         builder.Property(r => r.Pattern).IsRequired().HasMaxLength(500);
+        builder.Property(r => r.AmountMin).HasPrecision(18, 4);
+        builder.Property(r => r.AmountMax).HasPrecision(18, 4);
 
         builder.HasIndex(r => r.FamilyId);
 

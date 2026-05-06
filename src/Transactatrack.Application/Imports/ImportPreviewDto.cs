@@ -1,3 +1,5 @@
+using Transactatrack.Domain.Enums;
+
 namespace Transactatrack.Application.Imports;
 
 public record ImportPreviewDto(
@@ -17,5 +19,9 @@ public record ImportPreviewRowDto(
     DateTime? PostedDate,
     decimal Amount,
     string Description,
-    bool IsDuplicate
+    bool IsDuplicate,
+    Guid? CategoryId = null,
+    CategorizationSource CategorizationSource = CategorizationSource.Manual,
+    bool NeedsReview = false,
+    Guid? TransactionId = null
 );

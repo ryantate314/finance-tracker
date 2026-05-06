@@ -10,4 +10,7 @@ public class ImportBatch : FamilyScopedEntity
     public string OriginalFilename { get; set; } = string.Empty;
     public DateTime UploadedUtc { get; set; }
     public ImportBatchStatus Status { get; set; }
+    public LlmCategorizationStatus LlmStatus { get; set; } = LlmCategorizationStatus.None;
+    public int LlmRowsTotal { get; set; }
+    public int LlmRowsDone { get; set; }
 }

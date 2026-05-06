@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Transactatrack.Application.Imports;
+using Transactatrack.Application.Categorization;
+using Transactatrack.Domain.Enums;
 using Transactatrack.Infrastructure.Persistence;
 
 namespace Transactatrack.Api.Controllers;
@@ -11,11 +13,13 @@ public class ImportsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IImportService _importService;
+    private readonly ICategorizationService _categorization;
 
-    public ImportsController(AppDbContext db, IImportService importService)
+    public ImportsController(AppDbContext db, IImportService importService, ICategorizationService categorization)
     {
         _db = db;
         _importService = importService;
+        _categorization = categorization;
     }
 
     [HttpGet]
@@ -30,7 +34,10 @@ public class ImportsController : ControllerBase
                 b.OriginalFilename,
                 b.UploadedUtc,
                 b.Status,
-                _db.Transactions.Count(t => t.ImportBatchId == b.Id)))
+                _db.Transactions.Count(t => t.ImportBatchId == b.Id),
+                b.LlmStatus,
+                b.LlmRowsTotal,
+                b.LlmRowsDone))
             .ToListAsync(ct);
         return Ok(batches);
     }
@@ -44,14 +51,13 @@ public class ImportsController : ControllerBase
         var transactions = await _db.Transactions
             .Where(t => t.ImportBatchId == id)
             .OrderByDescending(t => t.Date)
-            .Take(50)
-            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false))
+            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.CategorizationSource, t.NeedsReview, t.Id))
             .ToListAsync(ct);
 
-        var totalCount = await _db.Transactions.CountAsync(t => t.ImportBatchId == id, ct);
+        var totalCount = transactions.Count;
 
         return Ok(new ImportBatchDetailDto(
-            new ImportBatchDto(batch.Id, batch.AccountId, batch.BankCode, batch.OriginalFilename, batch.UploadedUtc, batch.Status, totalCount),
+            new ImportBatchDto(batch.Id, batch.AccountId, batch.BankCode, batch.OriginalFilename, batch.UploadedUtc, batch.Status, totalCount, batch.LlmStatus, batch.LlmRowsTotal, batch.LlmRowsDone),
             transactions));
     }
 
@@ -103,6 +109,32 @@ public class ImportsController : ControllerBase
         {
             return StatusCode(ex.StatusCode, new { title = ex.Title, status = ex.StatusCode });
         }
+    }
+
+    [HttpPost("{id:guid}/rerun-rules")]
+    public async Task<IActionResult> RerunRules(Guid id, CancellationToken ct)
+    {
+        var batch = await _db.ImportBatches.FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (batch is null) return NotFound();
+        if (batch.Status != ImportBatchStatus.Pending)
+            return Conflict(new { title = $"Batch is in status {batch.Status}; only Pending batches can have rules re-run.", status = 409 });
+
+        await _categorization.RerunRulesAsync(id, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/suggest-llm")]
+    public async Task<IActionResult> SuggestLlm(Guid id, CancellationToken ct)
+    {
+        var batch = await _db.ImportBatches.FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (batch is null) return NotFound();
+        if (batch.Status != ImportBatchStatus.Pending)
+            return Conflict(new { title = $"Batch is in status {batch.Status}; only Pending batches can receive LLM suggestions.", status = 409 });
+        if (batch.LlmStatus == LlmCategorizationStatus.Running)
+            return Conflict(new { title = "LLM categorization is already running for this batch.", status = 409 });
+
+        await _categorization.StartLlmAsync(id, ct);
+        return Accepted();
     }
 }
 

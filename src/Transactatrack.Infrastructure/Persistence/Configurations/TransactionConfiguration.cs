@@ -15,8 +15,16 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.Amount).HasPrecision(18, 4);
         builder.Property(t => t.SourceRowHash).IsRequired().HasMaxLength(80);
 
+        builder.Property(t => t.CategorizationSource)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20);
+        builder.Property(t => t.LlmConfidence).HasPrecision(3, 2);
+        builder.Property(t => t.LlmModel).HasMaxLength(100);
+
         builder.HasIndex(t => new { t.FamilyId, t.AccountId, t.Date });
         builder.HasIndex(t => new { t.AccountId, t.SourceRowHash }).IsUnique();
+        builder.HasIndex(t => new { t.FamilyId, t.NeedsReview });
 
         builder.HasOne<Family>()
             .WithMany()
@@ -38,5 +46,11 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .HasForeignKey(t => t.CategoryId)
             .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<CategoryRule>()
+            .WithMany()
+            .HasForeignKey(t => t.AppliedRuleId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

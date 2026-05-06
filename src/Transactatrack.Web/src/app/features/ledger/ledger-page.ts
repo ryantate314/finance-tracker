@@ -3,6 +3,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,6 +19,7 @@ import { extractErrorMessage } from '../../core/api/api-error';
 import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { AccountDto, AccountsService } from '../accounts/accounts.service';
 import { CategoriesService, CategoryDto } from '../categories/categories.service';
+import { TransactionsService } from '../transactions/transactions.service';
 import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledger.service';
 
 @Component({
@@ -34,6 +36,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     MatDatepickerModule,
     MatButtonModule,
     MatIconModule,
+    MatCheckboxModule,
     DatePipe,
     DecimalPipe,
   ],
@@ -81,6 +84,8 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
         </mat-select>
       </mat-form-field>
 
+      <mat-checkbox [formControl]="needsReviewCtrl" class="review-check">Needs review</mat-checkbox>
+
       <button mat-stroked-button (click)="clearFilters()">Clear</button>
     </div>
 
@@ -99,7 +104,22 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
       </ng-container>
       <ng-container matColumnDef="category">
         <mat-header-cell *matHeaderCellDef>Category</mat-header-cell>
-        <mat-cell *matCellDef="let t">{{ categoryName(t.categoryId) }}</mat-cell>
+        <mat-cell *matCellDef="let t">
+          <div class="cat-cell">
+            <mat-select
+              class="cat-select"
+              [value]="t.categoryId"
+              (valueChange)="onCategoryChange(t, $event)">
+              <mat-option [value]="null">— Uncategorized —</mat-option>
+              @for (c of categories(); track c.id) {
+                <mat-option [value]="c.id">{{ c.name }}</mat-option>
+              }
+            </mat-select>
+            @if (t.needsReview && t.categorizationSource === 'Llm') {
+              <span class="source-chip ai">AI</span>
+            }
+          </div>
+        </mat-cell>
       </ng-container>
       <ng-container matColumnDef="amount">
         <mat-header-cell *matHeaderCellDef class="right">Amount</mat-header-cell>
@@ -124,12 +144,17 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     .muted { color: rgba(0,0,0,0.55); font-size: 0.875rem; }
     .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; padding-bottom: 8px; }
     .filters mat-form-field { min-width: 180px; }
+    .review-check { padding-top: 8px; }
     .right { justify-content: flex-end; text-align: right; }
     .debit { color: #b00020; }
+    .cat-cell { display: flex; align-items: center; gap: 4px; }
+    .cat-select { min-width: 140px; font-size: 0.875rem; }
+    .source-chip { font-size: 0.7rem; padding: 1px 5px; border-radius: 10px; font-weight: 600; white-space: nowrap; background: #e3f2fd; color: #1565c0; }
   `],
 })
 export class LedgerPage {
   private svc = inject(LedgerService);
+  private txSvc = inject(TransactionsService);
   private accountsSvc = inject(AccountsService);
   private categoriesSvc = inject(CategoriesService);
   private snack = inject(MatSnackBar);
@@ -140,6 +165,7 @@ export class LedgerPage {
   toCtrl = new FormControl<Date | null>(null);
   accountIdsCtrl = new FormControl<string[]>([], { nonNullable: true });
   categoryIdsCtrl = new FormControl<string[]>([], { nonNullable: true });
+  needsReviewCtrl = new FormControl(false, { nonNullable: true });
 
   page = signal(1);
   pageSize = signal(50);
@@ -151,30 +177,28 @@ export class LedgerPage {
 
   private accountsById = computed(() =>
     new Map(this.accounts().map(a => [a.id, a.name])));
-  private categoriesById = computed(() =>
-    new Map(this.categories().map(c => [c.id, c.name])));
 
   private q = toSignal(this.qCtrl.valueChanges.pipe(debounceTime(250)), { initialValue: '' });
   private from = toSignal(this.fromCtrl.valueChanges, { initialValue: null });
   private to = toSignal(this.toCtrl.valueChanges, { initialValue: null });
   private accountIds = toSignal(this.accountIdsCtrl.valueChanges, { initialValue: [] as string[] });
   private categoryIds = toSignal(this.categoryIdsCtrl.valueChanges, { initialValue: [] as string[] });
+  private needsReview = toSignal(this.needsReviewCtrl.valueChanges, { initialValue: false });
 
   private query$ = new Subject<LedgerQuery>();
 
   constructor() {
-    // Reset paging when any filter changes — debounced to match the q signal.
     merge(
       this.qCtrl.valueChanges.pipe(debounceTime(250)),
       this.fromCtrl.valueChanges,
       this.toCtrl.valueChanges,
       this.accountIdsCtrl.valueChanges,
       this.categoryIdsCtrl.valueChanges,
+      this.needsReviewCtrl.valueChanges,
     ).pipe(takeUntilDestroyed()).subscribe(() => {
       if (this.page() !== 1) this.page.set(1);
     });
 
-    // Reload accounts + categories on family change so the dropdowns stay valid.
     effect(() => {
       const id = this.familyCtx.activeFamilyId();
       if (!id) return;
@@ -188,23 +212,22 @@ export class LedgerPage {
       });
     });
 
-    // Re-fetch ledger whenever any input signal changes.
     effect(() => {
       const id = this.familyCtx.activeFamilyId();
       if (!id) return;
+      const nr = this.needsReview();
       this.query$.next({
         accountIds: this.accountIds(),
         categoryIds: this.categoryIds(),
         from: this.from(),
         to: this.to(),
         q: this.q(),
+        needsReview: nr || undefined,
         page: this.page(),
         pageSize: this.pageSize(),
       });
     });
 
-    // switchMap cancels any in-flight request when the query changes,
-    // so rapid filter typing can't race and overwrite fresh results with stale ones.
     this.query$.pipe(
       switchMap(q => this.svc.list(q)),
       takeUntilDestroyed(),
@@ -215,7 +238,17 @@ export class LedgerPage {
   }
 
   accountName(id: string): string { return this.accountsById().get(id) ?? id; }
-  categoryName(id: string | null): string { return id ? (this.categoriesById().get(id) ?? '—') : '—'; }
+
+  onCategoryChange(tx: TransactionDto, categoryId: string | null) {
+    this.txSvc.updateCategory(tx.id, categoryId).subscribe({
+      next: updated => {
+        this.result.update(r => r
+          ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
+          : r);
+      },
+      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+    });
+  }
 
   onPageChange(e: PageEvent) {
     this.pageSize.set(e.pageSize);
@@ -228,6 +261,7 @@ export class LedgerPage {
     this.toCtrl.setValue(null);
     this.accountIdsCtrl.setValue([]);
     this.categoryIdsCtrl.setValue([]);
+    this.needsReviewCtrl.setValue(false);
     this.page.set(1);
   }
 }

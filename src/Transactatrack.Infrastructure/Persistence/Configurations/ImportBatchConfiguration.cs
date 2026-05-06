@@ -12,6 +12,10 @@ internal class ImportBatchConfiguration : IEntityTypeConfiguration<ImportBatch>
         builder.Property(b => b.Id).ValueGeneratedOnAdd();
         builder.Property(b => b.BankCode).IsRequired().HasMaxLength(50);
         builder.Property(b => b.OriginalFilename).IsRequired().HasMaxLength(500);
+        builder.Property(b => b.LlmStatus)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20);
 
         builder.HasIndex(b => b.FamilyId);
 

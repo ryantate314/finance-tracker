@@ -4,7 +4,9 @@ using Serilog;
 using Transactatrack.Api.HealthChecks;
 using Transactatrack.Api.Middleware;
 using Transactatrack.Application;
+using Transactatrack.Application.Categorization;
 using Transactatrack.Application.Imports;
+using Transactatrack.Infrastructure.Categorization;
 using Transactatrack.Infrastructure.Imports;
 using Transactatrack.Infrastructure.Imports.Parsers;
 using Transactatrack.Infrastructure.Llm;
@@ -42,6 +44,10 @@ builder.Services.AddSingleton<IBankCsvParser, ChaseParser>();
 builder.Services.AddSingleton<IBankParserRegistry, BankParserRegistry>();
 builder.Services.AddSingleton<SourceRowHasher>();
 builder.Services.AddScoped<IImportService, ImportService>();
+
+builder.Services.AddScoped<IRuleEngine, RuleEngine>();
+builder.Services.AddScoped<IOllamaCategorizer, OllamaCategorizer>();
+builder.Services.AddScoped<ICategorizationService, CategorizationService>();
 
 if (builder.Environment.IsDevelopment())
 {

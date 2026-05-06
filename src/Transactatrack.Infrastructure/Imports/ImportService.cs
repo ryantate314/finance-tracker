@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Transactatrack.Application.Categorization;
 using Transactatrack.Application.Imports;
 using Transactatrack.Domain.Entities;
 using Transactatrack.Domain.Enums;
@@ -13,12 +14,14 @@ public class ImportService : IImportService
     private readonly AppDbContext _db;
     private readonly IBankParserRegistry _registry;
     private readonly SourceRowHasher _hasher;
+    private readonly ICategorizationService _categorization;
 
-    public ImportService(AppDbContext db, IBankParserRegistry registry, SourceRowHasher hasher)
+    public ImportService(AppDbContext db, IBankParserRegistry registry, SourceRowHasher hasher, ICategorizationService categorization)
     {
         _db = db;
         _registry = registry;
         _hasher = hasher;
+        _categorization = categorization;
     }
 
     public async Task<ImportPreviewDto> UploadAsync(Guid accountId, Stream csv, string filename, CancellationToken ct)
@@ -52,16 +55,21 @@ public class ImportService : IImportService
         }
 
         // Trust the CSV: rows that hash the same represent distinct real transactions
-        // (e.g. two $2 Uber tips on the same day). Disambiguate within-batch collisions
-        // with an occurrence suffix so the (AccountId, SourceRowHash) unique index holds.
+        // (e.g. two $2 tips on the same day). Disambiguate within-batch collisions with
+        // an occurrence suffix so the (AccountId, SourceRowHash) unique index holds.
+        // Track base hash and ordinal per position for the backwards-compat dup check below.
         var occurrence = new Dictionary<string, int>();
         var hashes = new List<string>(parsed.Count);
+        var baseHashes = new List<string>(parsed.Count);
+        var ordinals = new List<int>(parsed.Count);
         foreach (var row in parsed)
         {
             var baseHash = _hasher.Hash(accountId, row.Date, row.Amount, row.Description);
             var ord = occurrence.GetValueOrDefault(baseHash, 0);
             occurrence[baseHash] = ord + 1;
             hashes.Add(ord == 0 ? baseHash : $"{baseHash}#{ord}");
+            baseHashes.Add(baseHash);
+            ordinals.Add(ord);
         }
 
         // IgnoreQueryFilters: the account itself was already family-scoped above (FirstOrDefaultAsync
@@ -83,7 +91,7 @@ public class ImportService : IImportService
             Status = ImportBatchStatus.Pending,
         };
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await using var dbTx = await _db.Database.BeginTransactionAsync(ct);
         _db.ImportBatches.Add(batch);
         await _db.SaveChangesAsync(ct);
 
@@ -95,7 +103,11 @@ public class ImportService : IImportService
             var hash = hashes[i];
             var row = parsed[i];
 
-            if (existingSet.Contains(hash))
+            // A suffixed row (ord > 0) is also a dup if its base hash exists in the DB.
+            // This handles data imported before occurrence suffixes were introduced, where
+            // only one occurrence was stored; on re-import the suffixed hash won't be found
+            // by exact match but the base hash being present signals it was already imported.
+            if (existingSet.Contains(hash) || (ordinals[i] > 0 && existingSet.Contains(baseHashes[i])))
             {
                 duplicateRows.Add(row);
                 continue;
@@ -118,15 +130,19 @@ public class ImportService : IImportService
         {
             _db.Transactions.AddRange(newRows);
             await _db.SaveChangesAsync(ct);
+
+            // Apply categorization rules synchronously before returning the preview.
+            await _categorization.ApplyRulesAsync(newRows, ct);
+            await _db.SaveChangesAsync(ct);
         }
 
-        await tx.CommitAsync(ct);
+        await dbTx.CommitAsync(ct);
 
         // Sample includes both new and dropped rows so the user can see what was deduped.
         // Dropped rows are flagged IsDuplicate=true; new rows IsDuplicate=false.
         var sample = newRows
             .Take(SamplePreviewSize)
-            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false))
+            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.CategorizationSource, t.NeedsReview, t.Id))
             .Concat(duplicateRows
                 .Take(SamplePreviewSize)
                 .Select(r => new ImportPreviewRowDto(r.Date, r.PostedDate, r.Amount, r.Description, true)))

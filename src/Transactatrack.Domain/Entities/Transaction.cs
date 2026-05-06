@@ -1,4 +1,5 @@
 using Transactatrack.Domain.Common;
+using Transactatrack.Domain.Enums;
 
 namespace Transactatrack.Domain.Entities;
 
@@ -15,4 +16,10 @@ public class Transaction : FamilyScopedEntity
     public Guid? TransferGroupId { get; set; }
     public Guid ImportBatchId { get; set; }
     public string SourceRowHash { get; set; } = string.Empty;
+    public CategorizationSource CategorizationSource { get; set; } = CategorizationSource.Manual;
+    public bool NeedsReview { get; set; }
+    public decimal? LlmConfidence { get; set; }
+    public string? LlmModel { get; set; }
+    public Guid? AppliedRuleId { get; set; }
+    public DateTime? CategorizedUtc { get; set; }
 }

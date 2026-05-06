@@ -1,3 +1,5 @@
+using Transactatrack.Domain.Enums;
+
 namespace Transactatrack.Application.Transactions;
 
 public record TransactionDto(
@@ -12,5 +14,9 @@ public record TransactionDto(
     bool IsTransfer,
     Guid? TransferGroupId,
     Guid ImportBatchId,
-    DateTime CreatedUtc
+    DateTime CreatedUtc,
+    CategorizationSource CategorizationSource,
+    bool NeedsReview,
+    decimal? LlmConfidence,
+    Guid? AppliedRuleId
 );

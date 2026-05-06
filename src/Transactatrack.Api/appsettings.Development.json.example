@@ -2,6 +2,9 @@
   "ConnectionStrings": {
     "Default": "Host=localhost;Port=5432;Database=transactatrack;Username=YOUR_PG_USER;Password=YOUR_PG_PASSWORD"
   },
+  "Ollama": {
+    "Model": "llama3.2:1b"
+  },
   "Serilog": {
     "MinimumLevel": {
       "Default": "Information",

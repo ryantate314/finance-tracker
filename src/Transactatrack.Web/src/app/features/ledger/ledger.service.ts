@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
 
+export type CategorizationSource = 'Manual' | 'Rule' | 'Llm';
+
 export interface TransactionDto {
   id: string;
   accountId: string;
@@ -15,6 +17,10 @@ export interface TransactionDto {
   transferGroupId: string | null;
   importBatchId: string;
   createdUtc: string;
+  categorizationSource: CategorizationSource;
+  needsReview: boolean;
+  llmConfidence: number | null;
+  appliedRuleId: string | null;
 }
 
 export interface PagedResult<T> {
@@ -30,6 +36,7 @@ export interface LedgerQuery {
   from?: Date | null;
   to?: Date | null;
   q?: string;
+  needsReview?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -46,6 +53,7 @@ export class LedgerService {
     if (q.from) params = params.set('from', this.dateToYmd(q.from));
     if (q.to) params = params.set('to', this.dateToYmd(q.to));
     if (q.q?.trim()) params = params.set('q', q.q.trim());
+    if (q.needsReview !== undefined) params = params.set('needsReview', String(q.needsReview));
     if (q.page) params = params.set('page', q.page);
     if (q.pageSize) params = params.set('pageSize', q.pageSize);
     return this.http.get<PagedResult<TransactionDto>>(this.base, { params });
