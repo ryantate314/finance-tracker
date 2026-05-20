@@ -22,23 +22,51 @@ public class OllamaClient
         return response?.Models?.Select(m => m.Name).ToArray() ?? [];
     }
 
-    public async Task<string> GenerateJsonAsync(string prompt, CancellationToken ct = default)
+    /// <summary>
+    /// Calls /api/chat with format=json. Uses a low-temperature deterministic profile suitable for
+    /// structured-output tasks like transaction categorization.
+    /// </summary>
+    public async Task<string> ChatJsonAsync(
+        string systemPrompt,
+        string userPrompt,
+        CancellationToken ct = default)
     {
         var body = JsonSerializer.Serialize(new
         {
             model = Model,
-            prompt,
             stream = false,
-            format = "json"
+            format = "json",
+            // Qwen3 and other reasoning models default to thinking mode, which emits <think>…</think>
+            // before the JSON body and breaks format=json parsing. Disable it for classification.
+            think = false,
+            messages = new object[]
+            {
+                new { role = "system", content = systemPrompt },
+                new { role = "user",   content = userPrompt   },
+            },
+            options = new
+            {
+                temperature = 0.0,
+                top_p = 0.9,
+                top_k = 20,
+                repeat_penalty = 1.05,
+                num_ctx = 8192,
+                num_predict = 2048,
+            },
         });
         using var content = new StringContent(body, Encoding.UTF8, "application/json");
-        var response = await _http.PostAsync("/api/generate", content, ct);
+        var response = await _http.PostAsync("/api/chat", content, ct);
         response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<GenerateResponse>(cancellationToken: ct);
-        return result?.Response ?? string.Empty;
+        var result = await response.Content.ReadFromJsonAsync<ChatResponse>(cancellationToken: ct);
+        return result?.Message?.Content ?? string.Empty;
     }
+
+    // Kept for backwards compatibility with any older callers — delegates to ChatJsonAsync.
+    public Task<string> GenerateJsonAsync(string prompt, CancellationToken ct = default)
+        => ChatJsonAsync(systemPrompt: string.Empty, userPrompt: prompt, ct);
 
     private sealed record TagsResponse(IReadOnlyList<ModelInfo>? Models);
     private sealed record ModelInfo(string Name);
-    private sealed record GenerateResponse(string Response);
+    private sealed record ChatResponse(ChatMessage? Message);
+    private sealed record ChatMessage(string? Role, string? Content);
 }

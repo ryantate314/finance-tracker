@@ -12,6 +12,20 @@ public class OllamaCategorizer : IOllamaCategorizer
     // One Ollama call at a time — single GPU/CPU backend.
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
+    private const string SystemPrompt =
+        "You are a deterministic personal-finance transaction classifier. " +
+        "For every transaction you receive, output a JSON object that maps the transaction key " +
+        "(tx1, tx2, ...) to an object with categoryId (integer, required), subCategoryId " +
+        "(integer, optional), and confidence (number 0.0-1.0, required). " +
+        "Rules: " +
+        "(1) You MUST classify every transaction — never omit one. If unsure, pick the closest " +
+        "category and use a low confidence (0.3-0.5). " +
+        "(2) categoryId must be one of the listed category numbers. " +
+        "(3) subCategoryId, if provided, must be a sub-category number listed under the chosen " +
+        "category — never from a different category. Omit subCategoryId if no sub-category clearly fits. " +
+        "(4) Positive amounts are credits (income, refunds, transfers in). Negative amounts are debits. " +
+        "(5) Output JSON only — no prose, no markdown.";
+
     private readonly OllamaClient _ollama;
     private readonly ILogger<OllamaCategorizer> _logger;
 
@@ -45,39 +59,40 @@ public class OllamaCategorizer : IOllamaCategorizer
         var sb = new StringBuilder();
         foreach (var (catIdx, cat) in idToCategory)
         {
-            sb.Append("  ").Append(catIdx).Append(": ").AppendLine(cat.Name);
-            if (subsByCategory.TryGetValue(cat.Id, out var subs))
+            sb.Append("  ").Append(catIdx).Append(": ").Append(cat.Name);
+            if (subsByCategory.TryGetValue(cat.Id, out var subs) && subs.Count > 0)
             {
                 var subList = string.Join(", ", subs.Select(s => $"{subGuidToIndex[s.Id]}={s.Name}"));
-                sb.Append("     sub: ").AppendLine(subList);
+                sb.Append("  [subs: ").Append(subList).Append(']');
             }
+            sb.AppendLine();
         }
         var categoryList = sb.ToString().TrimEnd();
 
         var txLines = string.Join("\n", transactions.Select((t, i) =>
-            $"  tx{i + 1} | {t.Date:yyyy-MM-dd} | {t.Amount:F2} | {t.Merchant ?? t.Description}"));
+        {
+            string merchant = !string.IsNullOrWhiteSpace(t.Merchant) ? t.Merchant! : "(none)";
+            string sign = t.Amount >= 0 ? "+" : "";
+            return $"  tx{i + 1}: amount={sign}{t.Amount:F2} merchant=\"{merchant}\" desc=\"{t.Description}\"";
+        }));
 
-        var exampleJson = """{"tx1":{"categoryId":1,"subCategoryId":2,"confidence":0.9},"tx2":{"categoryId":3,"confidence":0.7}}""";
-        var prompt = $"""
-You are a personal finance categorization assistant. Given a list of bank transactions and available categories (with optional sub-categories), assign the best category — and a sub-category when one clearly fits — to each transaction.
-
+        var exampleJson = """{"tx1":{"categoryId":1,"subCategoryId":2,"confidence":0.95},"tx2":{"categoryId":3,"confidence":0.4}}""";
+        var userPrompt = $"""
 Categories:
 {categoryList}
 
 Transactions:
 {txLines}
 
-Respond with a JSON object mapping transaction keys to their category id, optional sub-category id, and confidence score (0.0-1.0). The sub-category id must be one of the sub-category numbers listed under the chosen category; omit subCategoryId if no sub-category clearly applies.
-Example: {exampleJson}
-
-Only include transactions you are confident about. Omit any transaction if unsure.
+Return a JSON object. Every tx key above MUST appear exactly once. Example shape:
+{exampleJson}
 """;
 
         await Gate.WaitAsync(ct);
         string raw;
         try
         {
-            raw = await _ollama.GenerateJsonAsync(prompt, ct);
+            raw = await _ollama.ChatJsonAsync(SystemPrompt, userPrompt, ct);
         }
         finally
         {
@@ -90,21 +105,36 @@ Only include transactions you are confident about. Omit any transaction if unsur
         try
         {
             using var doc = JsonDocument.Parse(raw);
-            foreach (var prop in doc.RootElement.EnumerateObject())
+            JsonElement root = doc.RootElement;
+
+            // Some models wrap the answer in {"transactions": {...}} or similar — try to unwrap a single nested object.
+            if (root.ValueKind == JsonValueKind.Object && !ContainsTxKey(root))
+            {
+                foreach (var prop in root.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind == JsonValueKind.Object && ContainsTxKey(prop.Value))
+                    {
+                        root = prop.Value;
+                        break;
+                    }
+                }
+            }
+
+            foreach (var prop in root.EnumerateObject())
             {
                 // Extract tx index from key like "tx3"
-                if (!prop.Name.StartsWith("tx")) continue;
+                if (!prop.Name.StartsWith("tx", StringComparison.OrdinalIgnoreCase)) continue;
                 if (!int.TryParse(prop.Name[2..], out var txIdx)) continue;
                 if (txIdx < 1 || txIdx > transactions.Count) continue;
 
+                if (prop.Value.ValueKind != JsonValueKind.Object) continue;
                 if (!prop.Value.TryGetProperty("categoryId", out var catIdEl)) continue;
-                if (catIdEl.ValueKind != JsonValueKind.Number || !catIdEl.TryGetInt32(out var catIntId)) continue;
+                if (!TryReadInt(catIdEl, out var catIntId)) continue;
                 if (!idToCategory.TryGetValue(catIntId, out var category)) continue;
 
                 Guid? subCategoryId = null;
                 if (prop.Value.TryGetProperty("subCategoryId", out var subIdEl)
-                    && subIdEl.ValueKind == JsonValueKind.Number
-                    && subIdEl.TryGetInt32(out var subIntId)
+                    && TryReadInt(subIdEl, out var subIntId)
                     && idToSubCategory.TryGetValue(subIntId, out var sub)
                     && sub.CategoryId == category.Id)
                 {
@@ -112,10 +142,16 @@ Only include transactions you are confident about. Omit any transaction if unsur
                 }
 
                 decimal confidence = 0;
-                if (prop.Value.TryGetProperty("confidence", out var confEl) && confEl.ValueKind == JsonValueKind.Number)
-                    confEl.TryGetDecimal(out confidence);
+                if (prop.Value.TryGetProperty("confidence", out var confEl))
+                {
+                    if (confEl.ValueKind == JsonValueKind.Number)
+                        confEl.TryGetDecimal(out confidence);
+                    else if (confEl.ValueKind == JsonValueKind.String
+                             && decimal.TryParse(confEl.GetString(), out var parsed))
+                        confidence = parsed;
+                }
 
-                if (confidence < 0 || confidence > 1) confidence = Math.Clamp(confidence, 0, 1);
+                confidence = Math.Clamp(confidence, 0m, 1m);
 
                 var txGuid = transactions[txIdx - 1].Id;
                 results[txGuid] = new LlmCategorizationResult(category.Id, subCategoryId, Math.Round(confidence, 2), _ollama.Model);
@@ -128,5 +164,29 @@ Only include transactions you are confident about. Omit any transaction if unsur
         }
 
         return results;
+    }
+
+    private static bool ContainsTxKey(JsonElement obj)
+    {
+        foreach (var p in obj.EnumerateObject())
+            if (p.Name.StartsWith("tx", StringComparison.OrdinalIgnoreCase)
+                && p.Name.Length > 2
+                && char.IsDigit(p.Name[2]))
+                return true;
+        return false;
+    }
+
+    private static bool TryReadInt(JsonElement el, out int value)
+    {
+        switch (el.ValueKind)
+        {
+            case JsonValueKind.Number:
+                return el.TryGetInt32(out value);
+            case JsonValueKind.String:
+                return int.TryParse(el.GetString(), out value);
+            default:
+                value = 0;
+                return false;
+        }
     }
 }

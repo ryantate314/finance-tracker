@@ -1,91 +1,50 @@
 {
   "categories": [
-    { "name": "Food", "subCategories": ["Groceries", "Restaurants"] },
-    { "name": "Transport", "subCategories": ["Gas", "Public Transit"] },
-    { "name": "Shopping", "subCategories": [] },
-    { "name": "Entertainment", "subCategories": ["Streaming", "Events"] },
-    { "name": "Utilities", "subCategories": ["Electric", "Internet"] }
+    { "name": "Food", "subCategories": ["Groceries", "Restaurants", "Coffee", "Fast Food"] },
+    { "name": "Transport", "subCategories": ["Gas", "Public Transit", "Rideshare", "Parking"] },
+    { "name": "Shopping", "subCategories": ["Clothing", "Electronics", "Home Goods"] },
+    { "name": "Entertainment", "subCategories": ["Streaming", "Events", "Gaming"] },
+    { "name": "Utilities", "subCategories": ["Electric", "Internet", "Water", "Phone"] },
+    { "name": "Health", "subCategories": ["Pharmacy", "Doctor", "Fitness"] },
+    { "name": "Housing", "subCategories": ["Rent", "Mortgage", "Repairs"] },
+    { "name": "Income", "subCategories": ["Salary", "Refund", "Interest"] },
+    { "name": "Transfer", "subCategories": [] },
+    { "name": "Fees", "subCategories": ["Bank", "Late"] }
   ],
   "transactions": [
-    {
-      "date": "2026-04-01",
-      "amount": -87.43,
-      "description": "KROGER #0412",
-      "merchant": "Kroger",
-      "expectedCategory": "Food",
-      "expectedSubCategory": "Groceries"
-    },
-    {
-      "date": "2026-04-02",
-      "amount": -42.10,
-      "description": "AMAZON.COM PURCHASE",
-      "merchant": "Amazon",
-      "expectedCategory": "Shopping",
-      "expectedSubCategory": null
-    },
-    {
-      "date": "2026-04-03",
-      "amount": -38.75,
-      "description": "CHEVRON #1022",
-      "merchant": "Chevron",
-      "expectedCategory": "Transport",
-      "expectedSubCategory": "Gas"
-    },
-    {
-      "date": "2026-04-04",
-      "amount": -14.99,
-      "description": "NETFLIX.COM",
-      "merchant": "Netflix",
-      "expectedCategory": "Entertainment",
-      "expectedSubCategory": "Streaming"
-    },
-    {
-      "date": "2026-04-05",
-      "amount": -62.50,
-      "description": "OLIVE GARDEN #0088",
-      "merchant": "Olive Garden",
-      "expectedCategory": "Food",
-      "expectedSubCategory": "Restaurants"
-    },
-    {
-      "date": "2026-04-06",
-      "amount": -3.25,
-      "description": "METROPOLITAN TRANSIT AUTHORITY",
-      "merchant": "MTA",
-      "expectedCategory": "Transport",
-      "expectedSubCategory": "Public Transit"
-    },
-    {
-      "date": "2026-04-07",
-      "amount": -120.00,
-      "description": "BEST BUY 00003425",
-      "merchant": "Best Buy",
-      "expectedCategory": "Shopping",
-      "expectedSubCategory": null
-    },
-    {
-      "date": "2026-04-08",
-      "amount": -89.99,
-      "description": "XFINITY AUTOPAY",
-      "merchant": "Xfinity",
-      "expectedCategory": "Utilities",
-      "expectedSubCategory": "Internet"
-    },
-    {
-      "date": "2026-04-09",
-      "amount": -45.00,
-      "description": "CONCERT TICKET - TICKETMASTER",
-      "merchant": "Ticketmaster",
-      "expectedCategory": "Entertainment",
-      "expectedSubCategory": "Events"
-    },
-    {
-      "date": "2026-04-10",
-      "amount": -31.20,
-      "description": "WHOLE FOODS MARKET #10212",
-      "merchant": "Whole Foods",
-      "expectedCategory": "Food",
-      "expectedSubCategory": "Groceries"
-    }
+    { "date": "2026-04-01", "amount": -87.43,  "description": "KROGER #0412",                       "merchant": "Kroger",        "expectedCategory": "Food",          "expectedSubCategory": "Groceries" },
+    { "date": "2026-04-02", "amount": -42.10,  "description": "AMAZON.COM*MK4G8 PURCHASE",          "merchant": "Amazon",        "expectedCategory": "Shopping",      "expectedSubCategory": null },
+    { "date": "2026-04-03", "amount": -38.75,  "description": "CHEVRON #1022 HOUSTON TX",           "merchant": "Chevron",       "expectedCategory": "Transport",     "expectedSubCategory": "Gas" },
+    { "date": "2026-04-04", "amount": -14.99,  "description": "NETFLIX.COM 866-579-7172",           "merchant": "Netflix",       "expectedCategory": "Entertainment", "expectedSubCategory": "Streaming" },
+    { "date": "2026-04-05", "amount": -62.50,  "description": "OLIVE GARDEN #0088",                 "merchant": "Olive Garden",  "expectedCategory": "Food",          "expectedSubCategory": "Restaurants" },
+    { "date": "2026-04-06", "amount": -3.25,   "description": "METROPOLITAN TRANSIT AUTHORITY",     "merchant": "MTA",           "expectedCategory": "Transport",     "expectedSubCategory": "Public Transit" },
+    { "date": "2026-04-07", "amount": -120.00, "description": "BEST BUY 00003425",                  "merchant": "Best Buy",      "expectedCategory": "Shopping",      "expectedSubCategory": "Electronics" },
+    { "date": "2026-04-08", "amount": -89.99,  "description": "XFINITY AUTOPAY",                    "merchant": "Xfinity",       "expectedCategory": "Utilities",     "expectedSubCategory": "Internet" },
+    { "date": "2026-04-09", "amount": -45.00,  "description": "CONCERT TICKET - TICKETMASTER",      "merchant": "Ticketmaster",  "expectedCategory": "Entertainment", "expectedSubCategory": "Events" },
+    { "date": "2026-04-10", "amount": -31.20,  "description": "WHOLE FOODS MARKET #10212",          "merchant": "Whole Foods",   "expectedCategory": "Food",          "expectedSubCategory": "Groceries" },
+    { "date": "2026-04-11", "amount": -5.45,   "description": "STARBUCKS STORE #02913",             "merchant": "Starbucks",     "expectedCategory": "Food",          "expectedSubCategory": "Coffee" },
+    { "date": "2026-04-12", "amount": -11.20,  "description": "MCDONALD'S F1928",                   "merchant": "McDonalds",     "expectedCategory": "Food",          "expectedSubCategory": "Fast Food" },
+    { "date": "2026-04-13", "amount": -23.50,  "description": "UBER   TRIP 9KJ3F",                  "merchant": "Uber",          "expectedCategory": "Transport",     "expectedSubCategory": "Rideshare" },
+    { "date": "2026-04-13", "amount": -8.00,   "description": "LAZ PARKING 482",                    "merchant": "LAZ Parking",   "expectedCategory": "Transport",     "expectedSubCategory": "Parking" },
+    { "date": "2026-04-14", "amount": -132.55, "description": "CONSOLIDATED EDISON BILLPAY",        "merchant": "ConEd",         "expectedCategory": "Utilities",     "expectedSubCategory": "Electric" },
+    { "date": "2026-04-14", "amount": -64.99,  "description": "VERIZON WIRELESS AUTOPAY",           "merchant": "Verizon",       "expectedCategory": "Utilities",     "expectedSubCategory": "Phone" },
+    { "date": "2026-04-15", "amount": -2400.00,"description": "GREYSTONE PROPERTY MGMT RENT",       "merchant": "Greystone",     "expectedCategory": "Housing",       "expectedSubCategory": "Rent" },
+    { "date": "2026-04-16", "amount": -19.99,  "description": "SPOTIFY USA",                        "merchant": "Spotify",       "expectedCategory": "Entertainment", "expectedSubCategory": "Streaming" },
+    { "date": "2026-04-17", "amount": -54.20,  "description": "CVS/PHARMACY #08412",                "merchant": "CVS",           "expectedCategory": "Health",        "expectedSubCategory": "Pharmacy" },
+    { "date": "2026-04-18", "amount": -49.00,  "description": "PLANET FITNESS CLUB FEES",           "merchant": "Planet Fitness","expectedCategory": "Health",        "expectedSubCategory": "Fitness" },
+    { "date": "2026-04-19", "amount": -78.45,  "description": "TARGET 00012245",                    "merchant": "Target",        "expectedCategory": "Shopping",      "expectedSubCategory": null },
+    { "date": "2026-04-20", "amount": -250.00, "description": "HOME DEPOT #6712",                   "merchant": "Home Depot",    "expectedCategory": "Shopping",      "expectedSubCategory": "Home Goods" },
+    { "date": "2026-04-21", "amount": 3850.00, "description": "ACME CORP PAYROLL DIRECTDEP",        "merchant": "Acme Corp",     "expectedCategory": "Income",        "expectedSubCategory": "Salary" },
+    { "date": "2026-04-22", "amount": 42.10,   "description": "AMAZON.COM REFUND",                  "merchant": "Amazon",        "expectedCategory": "Income",        "expectedSubCategory": "Refund" },
+    { "date": "2026-04-23", "amount": -35.00,  "description": "OVERDRAFT FEE",                      "merchant": null,            "expectedCategory": "Fees",          "expectedSubCategory": "Bank" },
+    { "date": "2026-04-24", "amount": -500.00, "description": "ONLINE TRANSFER TO SAVINGS XXXX4421","merchant": null,            "expectedCategory": "Transfer",      "expectedSubCategory": null },
+    { "date": "2026-04-25", "amount": -16.40,  "description": "CHIPOTLE 2188",                      "merchant": "Chipotle",      "expectedCategory": "Food",          "expectedSubCategory": "Fast Food" },
+    { "date": "2026-04-26", "amount": -27.99,  "description": "STEAM PURCHASE 425-952-2985",        "merchant": "Steam",         "expectedCategory": "Entertainment", "expectedSubCategory": "Gaming" },
+    { "date": "2026-04-27", "amount": -89.20,  "description": "TRADER JOE'S #482",                  "merchant": "Trader Joes",   "expectedCategory": "Food",          "expectedSubCategory": "Groceries" },
+    { "date": "2026-04-28", "amount": -148.00, "description": "DR ANDREWS DDS",                     "merchant": "Dr Andrews",    "expectedCategory": "Health",        "expectedSubCategory": "Doctor" },
+    { "date": "2026-04-29", "amount": -64.13,  "description": "SHELL OIL 57214932",                 "merchant": "Shell",         "expectedCategory": "Transport",     "expectedSubCategory": "Gas" },
+    { "date": "2026-04-30", "amount": 12.40,   "description": "INTEREST PAID",                      "merchant": null,            "expectedCategory": "Income",        "expectedSubCategory": "Interest" },
+    { "date": "2026-05-01", "amount": -45.00,  "description": "NORDSTROM #0421",                    "merchant": "Nordstrom",     "expectedCategory": "Shopping",      "expectedSubCategory": "Clothing" },
+    { "date": "2026-05-02", "amount": -82.10,  "description": "CITY WATER UTILITIES",               "merchant": "City Water",    "expectedCategory": "Utilities",     "expectedSubCategory": "Water" }
   ]
 }

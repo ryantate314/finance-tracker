@@ -39,6 +39,8 @@ public record BenchmarkResult(
     int RefusedCount,
     double MeanConfidenceCorrect,
     double MeanConfidenceIncorrect,
+    double TotalSeconds,
+    double SecondsPerTx,
     IReadOnlyList<CategoryMetrics> PerCategory,
     IReadOnlyList<Misclassification> Misclassifications,
     IReadOnlyList<Prediction> AllPredictions);
@@ -61,6 +63,8 @@ public static class BenchmarkReport
         PrintRow("Refusal rate",        $"{r.RefusedCount} / {total}",                       Pct(r.RefusedCount, total));
         PrintRow("Conf (correct)",      $"{r.MeanConfidenceCorrect:F2}");
         PrintRow("Conf (wrong)",        $"{r.MeanConfidenceIncorrect:F2}");
+        PrintRow("Total time",          $"{r.TotalSeconds:F1}s");
+        PrintRow("Sec/tx",              $"{r.SecondsPerTx:F2}s");
 
         Console.WriteLine();
         Console.WriteLine("Per-Category");

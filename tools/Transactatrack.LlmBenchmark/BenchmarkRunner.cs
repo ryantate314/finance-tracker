@@ -1,18 +1,22 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Transactatrack.Application.Categorization;
 using Transactatrack.Domain.Entities;
+using Transactatrack.Infrastructure.Llm;
 
 namespace Transactatrack.LlmBenchmark;
 
 public class BenchmarkRunner
 {
     private readonly IOllamaCategorizer _categorizer;
+    private readonly OllamaClient _ollama;
     private readonly ILogger<BenchmarkRunner> _logger;
 
-    public BenchmarkRunner(IOllamaCategorizer categorizer, ILogger<BenchmarkRunner> logger)
+    public BenchmarkRunner(IOllamaCategorizer categorizer, OllamaClient ollama, ILogger<BenchmarkRunner> logger)
     {
         _categorizer = categorizer;
+        _ollama = ollama;
         _logger = logger;
     }
 
@@ -30,8 +34,10 @@ public class BenchmarkRunner
         var categoryByName    = categories.ToDictionary(c => c.Name, c => c.Id, StringComparer.OrdinalIgnoreCase);
         var subCategoryByName = subCategories.ToDictionary(sc => sc.Name, sc => sc.Id, StringComparer.OrdinalIgnoreCase);
 
-        string model = "unknown";
+        // Pre-seed with the configured model so the report shows it even on 100% refusal.
+        string model = _ollama.Model;
         var allPredictions = new List<Prediction>();
+        var sw = Stopwatch.StartNew();
 
         for (int run = 1; run <= options.Runs; run++)
         {
@@ -75,7 +81,7 @@ public class BenchmarkRunner
 
                     if (results.TryGetValue(tx.Id, out var llm))
                     {
-                        if (model == "unknown") model = llm.Model;
+                        model = llm.Model;
 
                         allPredictions.Add(new Prediction(
                             Run:               run,
@@ -112,11 +118,12 @@ public class BenchmarkRunner
             }
         }
 
-        return Aggregate(allPredictions, model, input.Transactions.Count, options.Runs);
+        sw.Stop();
+        return Aggregate(allPredictions, model, input.Transactions.Count, options.Runs, sw.Elapsed.TotalSeconds);
     }
 
     private static BenchmarkResult Aggregate(
-        List<Prediction> predictions, string model, int txCount, int runs)
+        List<Prediction> predictions, string model, int txCount, int runs, double totalSeconds)
     {
         var refused  = predictions.Where(p => p.Refused).ToList();
         var answered = predictions.Where(p => !p.Refused).ToList();
@@ -145,6 +152,7 @@ public class BenchmarkRunner
                 p.PredictedCategory, p.PredictedSubCategory, p.Confidence))
             .ToList();
 
+        int totalPredictions = txCount * runs;
         return new BenchmarkResult(
             Model:                  model,
             TotalTransactions:      txCount,
@@ -156,6 +164,8 @@ public class BenchmarkRunner
             RefusedCount:           refused.Count,
             MeanConfidenceCorrect:  meanConfCorrect,
             MeanConfidenceIncorrect: meanConfIncorrect,
+            TotalSeconds:           totalSeconds,
+            SecondsPerTx:           totalPredictions > 0 ? totalSeconds / totalPredictions : 0,
             PerCategory:            perCategory,
             Misclassifications:     misses,
             AllPredictions:         predictions
