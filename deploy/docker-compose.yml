@@ -1,0 +1,51 @@
+# Portainer stack for Transactatrack.
+#
+# Images are built locally by the self-hosted GHA runner with the tags
+# transactatrack-api:latest and transactatrack-web:latest, so no registry
+# is involved. Set `pull_policy: never` to keep Portainer from trying to
+# fetch them from a remote.
+#
+# Required Portainer stack env vars:
+#   POSTGRES_CONNECTION    Npgsql connection string to the host Postgres
+#   OLLAMA_BASE_URL        e.g. http://10.0.20.20:11434
+#   WEB_HOST_PORT          host port to expose the UI on (e.g. 5080)
+
+services:
+  api:
+    image: transactatrack-api:latest
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: ${POSTGRES_CONNECTION}
+      Ollama__BaseUrl: ${OLLAMA_BASE_URL}
+      Ollama__Model: ${OLLAMA_MODEL:-qwen3:14b}
+      Database__AutoMigrate: "true"
+    extra_hosts:
+      # Lets the API reach Postgres on the Docker host without baking
+      # the LAN IP into config.
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/live || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - internal
+
+  web:
+    image: transactatrack-web:latest
+    pull_policy: never
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_HOST_PORT:-5080}:80"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

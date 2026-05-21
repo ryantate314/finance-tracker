@@ -1,0 +1,35 @@
+# Self-hosted GitHub Actions runner for Transactatrack.
+#
+# Deploy as a separate Portainer stack (independent of the app stack so
+# restarting the app doesn't take the runner offline).
+#
+# Required Portainer stack env vars:
+#   REPO_URL       e.g. https://github.com/<you>/transactatrack
+#   ACCESS_TOKEN   GitHub PAT with `repo` scope (classic) or fine-grained
+#                  token with Actions: Read/Write on this repo. Used by the
+#                  runner to fetch fresh registration tokens on every start.
+#
+# Security note: mounting /var/run/docker.sock gives this container root
+# on the host's Docker daemon. Only acceptable on a LAN-only personal box.
+
+services:
+  runner:
+    image: myoung34/github-runner:latest
+    restart: unless-stopped
+    environment:
+      REPO_URL: ${REPO_URL}
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      RUNNER_NAME: ${RUNNER_NAME:-home-server}
+      RUNNER_WORKDIR: /tmp/runner/work
+      RUNNER_SCOPE: repo
+      LABELS: self-hosted,home-server
+      EPHEMERAL: "false"
+      DISABLE_AUTO_UPDATE: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - runner-work:/tmp/runner/work
+    security_opt:
+      - label:disable
+
+volumes:
+  runner-work:

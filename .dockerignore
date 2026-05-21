@@ -1,0 +1,34 @@
+# Used when the build context is the repo root (API image).
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.vs
+**/.vscode
+**/.idea
+
+# Tests, tools, dev-only configs
+tests/
+tools/
+data/
+.github/
+.claude/
+docs/
+
+src/**/appsettings.Development.json
+src/**/appsettings.Development.json.example
+
+# Git and OS
+.git/
+.gitignore
+.gitattributes
+**/.DS_Store
+**/Thumbs.db
+
+# Docker / compose artifacts themselves
+docker-compose*.yml
+**/Dockerfile
+
+# Editor temp
+*.swp
+*.tmp

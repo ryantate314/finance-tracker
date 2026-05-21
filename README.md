@@ -90,4 +90,66 @@ transactatrack/
 └── .claude/plans/                        # phased build plans
 ```
 
-`deploy/` will land in Phase 6 (production Portainer deploy). Local dev is host-native — no compose file.
+## Home-server deploy
+
+The production target is a single home server running Docker + Portainer. The
+stack is two images — `transactatrack-api` (.NET API) and `transactatrack-web`
+(nginx serving the Angular SPA and reverse-proxying `/api` to the API). Postgres
+stays on the host (reached via `host.docker.internal`); Ollama already runs on a
+separate workstation.
+
+### One-time home-server setup
+
+1. **Stand up the self-hosted GHA runner** as a Portainer stack from
+   `deploy/runner-stack.yml` — see [GHA runner stack](#gha-runner-stack) below.
+   Confirm it appears in GitHub → Settings → Actions → Runners as **Idle**.
+2. **Create the app Portainer stack** from `deploy/docker-compose.yml`. Set the
+   env vars from `deploy/.env.example` (`POSTGRES_CONNECTION`, `OLLAMA_BASE_URL`,
+   `WEB_HOST_PORT`).
+3. **Enable the stack webhook** in Portainer (Stack → Webhooks → Create) and add
+   the URL as a GHA repo secret named `PORTAINER_WEBHOOK`.
+4. **Create the Postgres database** on the host:
+   `sudo -u postgres createdb transactatrack`. Migrations run on API startup
+   because `Database__AutoMigrate=true` is set in the compose file.
+
+### Deploy loop
+
+Push to `main` → `.github/workflows/deploy.yml` runs on the home-server runner
+→ both images are built locally (no registry round-trip) → the workflow hits the
+Portainer webhook → the stack recreates containers using the freshly-tagged
+`:latest` images. Expected end-to-end: ~1–2 minutes.
+
+`workflow_dispatch` is enabled if you want to redeploy without pushing.
+
+### Local compose run (optional)
+
+```bash
+cd deploy && cp .env.example .env  # edit DB password
+docker compose build
+docker compose up
+```
+
+### GHA runner stack
+
+`deploy/runner-stack.yml` runs the GitHub Actions runner itself as a Portainer
+stack — independent of the app stack so app restarts don't take the runner
+offline. Uses the community image `myoung34/github-runner` with the host's
+Docker socket mounted in so the runner can `docker build` against the host
+daemon (no Docker-in-Docker).
+
+Setup:
+
+1. **Generate a GitHub PAT** with the `repo` scope (classic) or a fine-grained
+   token scoped to this repo with `Actions: Read and write`. Save the value.
+2. **Create a new Portainer stack** from `deploy/runner-stack.yml`. Set the env
+   vars from `deploy/runner.env.example`: `REPO_URL`, `ACCESS_TOKEN`,
+   `RUNNER_NAME`.
+3. **Verify** in GitHub → Settings → Actions → Runners that the runner appears
+   with labels `self-hosted,home-server` and status `Idle`. The deploy workflow
+   targets `runs-on: [self-hosted, home-server]` so the labels must match. The
+   `home-server` label is intentionally generic — point other personal repos at
+   this same runner by giving their workflows the same `runs-on`.
+
+Security caveat: mounting `/var/run/docker.sock` gives this container root on
+the Docker daemon. Acceptable for a LAN-only personal box but not a pattern to
+copy onto anything internet-facing.

@@ -1,0 +1,52 @@
+name: Deploy to home server
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".claude/**"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-home-server
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, home-server]
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: |
+          docker build \
+            -f src/Transactatrack.Api/Dockerfile \
+            -t transactatrack-api:latest \
+            -t transactatrack-api:${{ github.sha }} \
+            .
+
+      - name: Build Web image
+        run: |
+          docker build \
+            -f src/Transactatrack.Web/Dockerfile \
+            -t transactatrack-web:latest \
+            -t transactatrack-web:${{ github.sha }} \
+            src/Transactatrack.Web
+
+      - name: Trigger Portainer redeploy
+        env:
+          PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK }}
+        run: |
+          if [ -z "$PORTAINER_WEBHOOK" ]; then
+            echo "PORTAINER_WEBHOOK secret is not set" >&2
+            exit 1
+          fi
+          curl -fsS -X POST "$PORTAINER_WEBHOOK"
+
+      - name: Prune dangling images
+        if: always()
+        run: docker image prune -f
