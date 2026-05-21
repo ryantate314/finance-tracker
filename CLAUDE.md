@@ -21,7 +21,7 @@ Local credentials go in `src/Transactatrack.Api/appsettings.Development.json` (g
 
 ```bash
 make db-update         # apply pending EF migrations (run separately when migrations are pending)
-make api               # start the API on :5080 (does NOT run migrations — use `make db-update` first)
+make api               # start the API on :5080 via `dotnet watch` — auto-rebuilds and restarts on source changes. Does NOT run migrations (use `make db-update` first)
 make ui                # ng serve on :4200
 make test              # unit + integration tests
 make test-unit         # unit tests only

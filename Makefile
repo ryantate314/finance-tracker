@@ -6,7 +6,7 @@ db-update:
 	dotnet ef database update -p src/Transactatrack.Infrastructure -s src/Transactatrack.Api
 
 api:
-	dotnet run --project src/Transactatrack.Api
+	dotnet watch --project src/Transactatrack.Api run
 
 ui:
 	cd src/Transactatrack.Web && ng serve

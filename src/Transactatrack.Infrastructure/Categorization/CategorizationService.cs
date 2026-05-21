@@ -120,7 +120,9 @@ public class CategorizationService : ICategorizationService
                         if (!suggestions.TryGetValue(tx.Id, out var suggestion)) continue;
 
                         var dbTx = await db.Transactions.FindAsync(tx.Id);
-                        if (dbTx is null || dbTx.CategorizationSource == CategorizationSource.Manual) continue;
+                        if (dbTx is null) continue;
+                        // Manual is the enum default; only treat it as a "don't overwrite" signal when paired with an actual category.
+                        if (dbTx.CategorizationSource == CategorizationSource.Manual && dbTx.CategoryId != null) continue;
 
                         dbTx.CategoryId = suggestion.CategoryId;
                         dbTx.SubCategoryId = suggestion.SubCategoryId;

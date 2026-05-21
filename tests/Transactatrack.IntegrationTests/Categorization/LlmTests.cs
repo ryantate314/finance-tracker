@@ -83,6 +83,12 @@ public class LlmTests : IClassFixture<LlmTestFactory>
 
         Assert.Equal(LlmCategorizationStatus.Complete, batch?.LlmStatus);
         Assert.True(batch?.LlmRowsDone > 0);
+
+        var detail = await client.GetFromJsonAsync<ImportBatchDetailDto>(
+            $"/api/imports/{batchId}", IntegrationTestFactory.JsonOpts);
+        var llmRows = detail!.Transactions.Where(t => t.CategorizationSource == CategorizationSource.Llm).ToList();
+        Assert.NotEmpty(llmRows);
+        Assert.All(llmRows, r => Assert.Equal(categoryId, r.CategoryId));
     }
 
     [Fact]

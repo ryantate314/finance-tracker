@@ -32,7 +32,7 @@ import { CategoriesService, CategoryDto, SubCategoryDto } from './categories.ser
           <mat-expansion-panel-header>
             <mat-panel-title class="panel-title">
               @if (editingCategoryId() === cat.id) {
-                <mat-form-field appearance="outline" class="inline-field" (click)="$event.stopPropagation()">
+                <mat-form-field appearance="outline" class="inline-field" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
                   <input matInput [formControl]="editCategoryCtrl" (keydown.enter)="saveCategoryEdit(cat)" (keydown.escape)="cancelEdit()" />
                 </mat-form-field>
                 <button mat-icon-button aria-label="Save" (click)="saveCategoryEdit(cat); $event.stopPropagation()"><mat-icon>check</mat-icon></button>
