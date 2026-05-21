@@ -139,8 +139,13 @@ daemon (no Docker-in-Docker).
 
 Setup:
 
-1. **Generate a GitHub PAT** with the `repo` scope (classic) or a fine-grained
-   token scoped to this repo with `Actions: Read and write`. Save the value.
+1. **Generate a GitHub PAT.** Runner registration is an admin operation, so it
+   needs admin permission on this repo (public or private — visibility doesn't
+   matter).
+   - Classic PAT: `repo` scope (full). `public_repo` is *not* enough.
+   - Fine-grained PAT scoped to this repo: `Administration: Read and write`.
+
+   Save the value.
 2. **Create a new Portainer stack** from `deploy/runner-stack.yml`. Set the env
    vars from `deploy/runner.env.example`: `REPO_URL`, `ACCESS_TOKEN`,
    `RUNNER_NAME`.
