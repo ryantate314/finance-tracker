@@ -30,6 +30,7 @@ export interface ImportPreviewRowDto {
   categorizationSource: CategorizationSource;
   needsReview: boolean;
   transactionId: string | null;
+  appliedRuleId: string | null;
 }
 
 export interface ImportPreviewDto {

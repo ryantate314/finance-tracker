@@ -24,5 +24,6 @@ public record ImportPreviewRowDto(
     Guid? SubCategoryId = null,
     CategorizationSource CategorizationSource = CategorizationSource.Manual,
     bool NeedsReview = false,
-    Guid? TransactionId = null
+    Guid? TransactionId = null,
+    Guid? AppliedRuleId = null
 );

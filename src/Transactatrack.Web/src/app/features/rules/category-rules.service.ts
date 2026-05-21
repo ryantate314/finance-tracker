@@ -46,6 +46,7 @@ export class CategoryRulesService {
   private base = `${environment.apiBaseUrl}/category-rules`;
 
   list() { return this.http.get<CategoryRuleDto[]>(this.base); }
+  get(id: string) { return this.http.get<CategoryRuleDto>(`${this.base}/${id}`); }
   create(req: SaveCategoryRuleRequest) { return this.http.post<CategoryRuleDto>(this.base, req); }
   update(id: string, req: SaveCategoryRuleRequest) { return this.http.put<void>(`${this.base}/${id}`, req); }
   delete(id: string) { return this.http.delete<void>(`${this.base}/${id}`); }

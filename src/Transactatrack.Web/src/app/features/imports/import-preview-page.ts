@@ -3,15 +3,19 @@ import { Component, DestroyRef, computed, effect, inject, signal } from '@angula
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs/operators';
 import { extractErrorMessage } from '../../core/api/api-error';
+import { CategoryPicker, CategorySelection } from '../categories/category-picker.component';
 import { CategoriesService, CategoryDto } from '../categories/categories.service';
+import { CategoryRulesService, SaveCategoryRuleRequest } from '../rules/category-rules.service';
+import { RuleEditDialog } from '../rules/rule-edit-dialog';
 import { TransactionsService } from '../transactions/transactions.service';
 import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRowDto, ImportsService } from './imports.service';
 
@@ -19,8 +23,8 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
   selector: 'app-import-preview-page',
   standalone: true,
   imports: [
-    MatTableModule, MatButtonModule, MatIconModule, MatSelectModule,
-    MatChipsModule, MatProgressBarModule, DatePipe, DecimalPipe,
+    MatTableModule, MatButtonModule, MatIconModule, MatMenuModule,
+    MatChipsModule, MatProgressBarModule, CategoryPicker, DatePipe, DecimalPipe,
   ],
   template: `
     <div class="page-header">
@@ -86,42 +90,45 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
             <mat-header-cell *matHeaderCellDef>Category</mat-header-cell>
             <mat-cell *matCellDef="let t">
               <div class="cat-cell">
-                <mat-select
-                  class="cat-select"
-                  [value]="t.categoryId"
+                <app-category-picker
+                  [categories]="categories()"
+                  [categoryId]="t.categoryId"
+                  [subCategoryId]="t.subCategoryId"
                   [disabled]="detail()?.batch?.status !== 'Pending'"
-                  (valueChange)="onCategoryChange(t, $event)">
-                  <mat-option [value]="null">— Uncategorized —</mat-option>
-                  @for (c of categories(); track c.id) {
-                    <mat-option [value]="c.id">{{ c.name }}</mat-option>
-                  }
-                </mat-select>
+                  (selectionChange)="onCategorySelection(t, $event)">
+                </app-category-picker>
                 @if (t.needsReview && t.categorizationSource === 'Llm') {
                   <span class="source-chip ai">AI</span>
-                } @else if (t.categorizationSource === 'Rule') {
-                  <span class="source-chip rule">Rule</span>
+                } @else if (t.categorizationSource === 'Rule' && t.appliedRuleId) {
+                  <button type="button" class="source-chip rule"
+                    (click)="openAppliedRule(t.appliedRuleId)"
+                    title="Edit the rule that categorized this transaction">Rule</button>
                 }
               </div>
             </mat-cell>
           </ng-container>
-          <ng-container matColumnDef="subCategory">
-            <mat-header-cell *matHeaderCellDef>Sub-Category</mat-header-cell>
-            <mat-cell *matCellDef="let t">
-              <mat-select
-                class="cat-select"
-                [value]="t.subCategoryId"
-                [disabled]="detail()?.batch?.status !== 'Pending' || !t.categoryId || subCategoriesFor(t.categoryId).length === 0"
-                (valueChange)="onSubCategoryChange(t, $event)">
-                <mat-option [value]="null">— none —</mat-option>
-                @for (s of subCategoriesFor(t.categoryId); track s.id) {
-                  <mat-option [value]="s.id">{{ s.name }}</mat-option>
-                }
-              </mat-select>
+          <ng-container matColumnDef="actions">
+            <mat-header-cell *matHeaderCellDef class="actions-cell"></mat-header-cell>
+            <mat-cell *matCellDef="let t" class="actions-cell">
+              <button mat-icon-button [matMenuTriggerFor]="rowMenu"
+                [matMenuTriggerData]="{ row: t }"
+                aria-label="Row actions">
+                <mat-icon>more_vert</mat-icon>
+              </button>
             </mat-cell>
           </ng-container>
           <mat-header-row *matHeaderRowDef="columns"></mat-header-row>
           <mat-row *matRowDef="let row; columns: columns"></mat-row>
         </mat-table>
+
+        <mat-menu #rowMenu="matMenu">
+          <ng-template matMenuContent let-row="row">
+            <button mat-menu-item (click)="createRuleFrom(row)">
+              <mat-icon>rule</mat-icon>
+              <span>Create rule from this transaction</span>
+            </button>
+          </ng-template>
+        </mat-menu>
       }
 
       @if (duplicateRows().length > 0) {
@@ -171,17 +178,25 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
     .dup-table mat-row { background: #fff8e6; }
     .muted { color: rgba(0,0,0,0.55); margin: 0 0 8px; }
     .error-msg { color: #b00020; }
-    .cat-cell { display: flex; align-items: center; gap: 4px; }
-    .cat-select { min-width: 150px; font-size: 0.875rem; }
-    .source-chip { font-size: 0.7rem; padding: 1px 5px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+    .cat-cell { display: flex; align-items: center; gap: 6px; }
+    .mat-column-date { flex: 0 0 100px; }
+    .mat-column-description { flex: 3 1 240px; }
+    .mat-column-amount { flex: 0 0 110px; }
+    .mat-column-category { overflow: visible; flex: 1 1 280px; }
+    .actions-cell { flex: 0 0 56px; justify-content: center; padding: 0; }
+    .source-chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; border: 0; }
     .source-chip.ai { background: #e3f2fd; color: #1565c0; }
     .source-chip.rule { background: #e8f5e9; color: #2e7d32; }
+    button.source-chip { cursor: pointer; }
+    button.source-chip:hover { filter: brightness(0.95); }
   `],
 })
 export class ImportPreviewPage {
   private svc = inject(ImportsService);
   private categoriesSvc = inject(CategoriesService);
   private txSvc = inject(TransactionsService);
+  private rulesSvc = inject(CategoryRulesService);
+  private dialog = inject(MatDialog);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private snack = inject(MatSnackBar);
@@ -191,7 +206,7 @@ export class ImportPreviewPage {
   uploadPreview = signal<ImportPreviewDto | null>(null);
   loading = signal(true);
   categories = signal<CategoryDto[]>([]);
-  columns = ['date', 'description', 'amount', 'category', 'subCategory'];
+  columns = ['date', 'description', 'amount', 'category', 'actions'];
   dupColumns = ['date', 'description', 'amount'];
 
   // Local mutable list of new rows (enables inline edits without full reload)
@@ -284,23 +299,9 @@ export class ImportPreviewPage {
     }
   }
 
-  subCategoriesFor(categoryId: string | null) {
-    if (!categoryId) return [];
-    return this.categories().find(c => c.id === categoryId)?.subCategories ?? [];
-  }
-
-  onCategoryChange(row: ImportPreviewRowDto, categoryId: string | null) {
+  onCategorySelection(row: ImportPreviewRowDto, selection: CategorySelection) {
     if (!row.transactionId) return;
-    // Changing category clears any prior sub-category — backend enforces this too.
-    this.txSvc.updateCategory(row.transactionId, categoryId, null).subscribe({
-      next: updated => this.applyUpdate(row, updated),
-      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
-    });
-  }
-
-  onSubCategoryChange(row: ImportPreviewRowDto, subCategoryId: string | null) {
-    if (!row.transactionId) return;
-    this.txSvc.updateCategory(row.transactionId, row.categoryId, subCategoryId).subscribe({
+    this.txSvc.updateCategory(row.transactionId, selection.categoryId, selection.subCategoryId).subscribe({
       next: updated => this.applyUpdate(row, updated),
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
@@ -339,6 +340,46 @@ export class ImportPreviewPage {
       next: () => { this.clearPoll(); this.router.navigate(['/ledger']); },
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
+  }
+
+  openAppliedRule(ruleId: string) {
+    this.rulesSvc.get(ruleId).subscribe({
+      next: rule => {
+        this.dialog.open(RuleEditDialog, { data: { rule }, width: '480px' })
+          .afterClosed().subscribe((req: SaveCategoryRuleRequest | undefined) => {
+            if (!req) return;
+            this.rulesSvc.update(rule.id, req).subscribe({
+              next: () => this.snack.open('Rule updated', 'Close', { duration: 3000 }),
+              error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+            });
+          });
+      },
+      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+    });
+  }
+
+  createRuleFrom(row: ImportPreviewRowDto) {
+    const prefill: Partial<SaveCategoryRuleRequest> = {
+      matchField: 'Description',
+      matchType: 'Contains',
+      pattern: row.description,
+      targetCategoryId: row.categoryId ?? '',
+      targetSubCategoryId: row.subCategoryId ?? null,
+      scope: 'Family',
+      priority: 10,
+      isEnabled: true,
+    };
+    this.dialog.open(RuleEditDialog, { data: { prefill }, width: '480px' })
+      .afterClosed().subscribe((req: SaveCategoryRuleRequest | undefined) => {
+        if (!req) return;
+        this.rulesSvc.create(req).subscribe({
+          next: () => {
+            this.snack.open('Rule created — re-running rules…', 'Close', { duration: 3000 });
+            this.rerunRules();
+          },
+          error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+        });
+      });
   }
 
   discard() {

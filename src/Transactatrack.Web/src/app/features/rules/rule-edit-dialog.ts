@@ -14,6 +14,7 @@ import { CategoryRuleDto, RuleMatchField, RuleMatchType, RuleScope, SaveCategory
 
 export interface RuleEditDialogData {
   rule?: CategoryRuleDto;
+  prefill?: Partial<SaveCategoryRuleRequest>;
 }
 
 @Component({
@@ -118,7 +119,7 @@ export interface RuleEditDialogData {
   styles: [`
     .form-grid { display: flex; flex-direction: column; gap: 4px; min-width: 380px; }
     mat-form-field { width: 100%; }
-    mat-dialog-content { padding-top: 8px; overflow: visible; }
+    mat-dialog-content { padding-top: 8px; }
     .scope-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
     .radio-group { display: flex; gap: 16px; }
     .toggle { margin: 8px 0; }
@@ -133,32 +134,36 @@ export class RuleEditDialog {
   categories = toSignal(this.categoriesSvc.list(), { initialValue: [] });
   accounts = toSignal(this.accountsSvc.list(), { initialValue: [] });
 
+  private pf = this.data.prefill ?? {};
+
   form = new FormGroup({
-    priority: new FormControl(this.data.rule?.priority ?? 10, [Validators.required, Validators.min(0)]),
-    matchField: new FormControl<RuleMatchField>(this.data.rule?.matchField ?? 'Description', Validators.required),
-    matchType: new FormControl<RuleMatchType>(this.data.rule?.matchType ?? 'Contains', Validators.required),
-    pattern: new FormControl(this.data.rule?.pattern ?? ''),
-    amountMin: new FormControl<number | null>(this.data.rule?.amountMin ?? null),
-    amountMax: new FormControl<number | null>(this.data.rule?.amountMax ?? null),
-    targetCategoryId: new FormControl(this.data.rule?.targetCategoryId ?? '', Validators.required),
-    targetSubCategoryId: new FormControl<string | null>(this.data.rule?.targetSubCategoryId ?? null),
-    scope: new FormControl<RuleScope>(this.data.rule?.scope ?? 'Family', Validators.required),
-    accountId: new FormControl<string | null>(this.data.rule?.accountId ?? null),
-    isEnabled: new FormControl(this.data.rule?.isEnabled ?? true),
+    priority: new FormControl(this.data.rule?.priority ?? this.pf.priority ?? 10, [Validators.required, Validators.min(0)]),
+    matchField: new FormControl<RuleMatchField>(this.data.rule?.matchField ?? this.pf.matchField ?? 'Description', Validators.required),
+    matchType: new FormControl<RuleMatchType>(this.data.rule?.matchType ?? this.pf.matchType ?? 'Contains', Validators.required),
+    pattern: new FormControl(this.data.rule?.pattern ?? this.pf.pattern ?? ''),
+    amountMin: new FormControl<number | null>(this.data.rule?.amountMin ?? this.pf.amountMin ?? null),
+    amountMax: new FormControl<number | null>(this.data.rule?.amountMax ?? this.pf.amountMax ?? null),
+    targetCategoryId: new FormControl(this.data.rule?.targetCategoryId ?? this.pf.targetCategoryId ?? '', Validators.required),
+    targetSubCategoryId: new FormControl<string | null>(this.data.rule?.targetSubCategoryId ?? this.pf.targetSubCategoryId ?? null),
+    scope: new FormControl<RuleScope>(this.data.rule?.scope ?? this.pf.scope ?? 'Family', Validators.required),
+    accountId: new FormControl<string | null>(this.data.rule?.accountId ?? this.pf.accountId ?? null),
+    isEnabled: new FormControl(this.data.rule?.isEnabled ?? this.pf.isEnabled ?? true),
   });
 
-  isTextMatch = toSignal(
+  private matchFieldValue = toSignal(
     this.form.controls.matchField.valueChanges,
-    { initialValue: this.data.rule?.matchField ?? 'Description' }
+    { initialValue: this.data.rule?.matchField ?? this.pf.matchField ?? 'Description' }
   );
-  isAccountScope = toSignal(
+  private scopeValue = toSignal(
     this.form.controls.scope.valueChanges,
-    { initialValue: this.data.rule?.scope ?? 'Family' }
+    { initialValue: this.data.rule?.scope ?? this.pf.scope ?? 'Family' }
   );
+  isTextMatch = computed(() => this.matchFieldValue() !== 'AmountRange');
+  isAccountScope = computed(() => this.scopeValue() === 'Account');
 
   private targetCategoryId = toSignal(
     this.form.controls.targetCategoryId.valueChanges,
-    { initialValue: this.data.rule?.targetCategoryId ?? '' }
+    { initialValue: this.data.rule?.targetCategoryId ?? this.pf.targetCategoryId ?? '' }
   );
 
   subCategoriesForSelected = computed(() => {
@@ -176,9 +181,6 @@ export class RuleEditDialog {
       if (!valid) this.form.controls.targetSubCategoryId.setValue(null);
     });
   }
-
-  get isTextMatchVal() { return this.form.controls.matchField.value !== 'AmountRange'; }
-  get isAccountScopeVal() { return this.form.controls.scope.value === 'Account'; }
 
   save() {
     if (this.form.invalid) return;

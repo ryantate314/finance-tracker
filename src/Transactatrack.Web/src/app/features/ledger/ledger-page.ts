@@ -6,9 +6,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -18,7 +20,10 @@ import { debounceTime, switchMap } from 'rxjs/operators';
 import { extractErrorMessage } from '../../core/api/api-error';
 import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { AccountDto, AccountsService } from '../accounts/accounts.service';
+import { CategoryPicker, CategorySelection } from '../categories/category-picker.component';
 import { CategoriesService, CategoryDto } from '../categories/categories.service';
+import { CategoryRulesService, SaveCategoryRuleRequest } from '../rules/category-rules.service';
+import { RuleEditDialog } from '../rules/rule-edit-dialog';
 import { TransactionsService } from '../transactions/transactions.service';
 import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledger.service';
 
@@ -36,7 +41,9 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     MatDatepickerModule,
     MatButtonModule,
     MatIconModule,
+    MatMenuModule,
     MatCheckboxModule,
+    CategoryPicker,
     DatePipe,
     DecimalPipe,
   ],
@@ -106,34 +113,20 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
         <mat-header-cell *matHeaderCellDef>Category</mat-header-cell>
         <mat-cell *matCellDef="let t">
           <div class="cat-cell">
-            <mat-select
-              class="cat-select"
-              [value]="t.categoryId"
-              (valueChange)="onCategoryChange(t, $event)">
-              <mat-option [value]="null">— Uncategorized —</mat-option>
-              @for (c of categories(); track c.id) {
-                <mat-option [value]="c.id">{{ c.name }}</mat-option>
-              }
-            </mat-select>
+            <app-category-picker
+              [categories]="categories()"
+              [categoryId]="t.categoryId"
+              [subCategoryId]="t.subCategoryId"
+              (selectionChange)="onCategorySelection(t, $event)">
+            </app-category-picker>
             @if (t.needsReview && t.categorizationSource === 'Llm') {
               <span class="source-chip ai">AI</span>
+            } @else if (t.categorizationSource === 'Rule' && t.appliedRuleId) {
+              <button type="button" class="source-chip rule"
+                (click)="openAppliedRule(t.appliedRuleId)"
+                title="Edit the rule that categorized this transaction">Rule</button>
             }
           </div>
-        </mat-cell>
-      </ng-container>
-      <ng-container matColumnDef="subCategory">
-        <mat-header-cell *matHeaderCellDef>Sub-Category</mat-header-cell>
-        <mat-cell *matCellDef="let t">
-          <mat-select
-            class="cat-select"
-            [value]="t.subCategoryId"
-            [disabled]="!t.categoryId || subCategoriesFor(t.categoryId).length === 0"
-            (valueChange)="onSubCategoryChange(t, $event)">
-            <mat-option [value]="null">— none —</mat-option>
-            @for (s of subCategoriesFor(t.categoryId); track s.id) {
-              <mat-option [value]="s.id">{{ s.name }}</mat-option>
-            }
-          </mat-select>
         </mat-cell>
       </ng-container>
       <ng-container matColumnDef="amount">
@@ -142,9 +135,28 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
           {{ t.amount | number:'1.2-2' }}
         </mat-cell>
       </ng-container>
+      <ng-container matColumnDef="actions">
+        <mat-header-cell *matHeaderCellDef class="actions-cell"></mat-header-cell>
+        <mat-cell *matCellDef="let t" class="actions-cell">
+          <button mat-icon-button [matMenuTriggerFor]="rowMenu"
+            [matMenuTriggerData]="{ row: t }"
+            aria-label="Row actions">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+        </mat-cell>
+      </ng-container>
       <mat-header-row *matHeaderRowDef="columns"></mat-header-row>
       <mat-row *matRowDef="let row; columns: columns"></mat-row>
     </mat-table>
+
+    <mat-menu #rowMenu="matMenu">
+      <ng-template matMenuContent let-row="row">
+        <button mat-menu-item (click)="createRuleFrom(row)">
+          <mat-icon>rule</mat-icon>
+          <span>Create rule from this transaction</span>
+        </button>
+      </ng-template>
+    </mat-menu>
 
     <mat-paginator
       [length]="result()?.totalCount ?? 0"
@@ -162,9 +174,18 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     .review-check { padding-top: 8px; }
     .right { justify-content: flex-end; text-align: right; }
     .debit { color: #b00020; }
-    .cat-cell { display: flex; align-items: center; gap: 4px; }
-    .cat-select { min-width: 140px; font-size: 0.875rem; }
-    .source-chip { font-size: 0.7rem; padding: 1px 5px; border-radius: 10px; font-weight: 600; white-space: nowrap; background: #e3f2fd; color: #1565c0; }
+    .cat-cell { display: flex; align-items: center; gap: 6px; }
+    .mat-column-date { flex: 0 0 100px; }
+    .mat-column-description { flex: 3 1 240px; }
+    .mat-column-account { flex: 0 0 140px; }
+    .mat-column-category { overflow: visible; flex: 1 1 280px; }
+    .mat-column-amount { flex: 0 0 110px; }
+    .source-chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; border: 0; }
+    .source-chip.ai { background: #e3f2fd; color: #1565c0; }
+    .source-chip.rule { background: #e8f5e9; color: #2e7d32; }
+    button.source-chip { cursor: pointer; }
+    button.source-chip:hover { filter: brightness(0.95); }
+    .actions-cell { flex: 0 0 56px; justify-content: center; padding: 0; }
   `],
 })
 export class LedgerPage {
@@ -172,6 +193,8 @@ export class LedgerPage {
   private txSvc = inject(TransactionsService);
   private accountsSvc = inject(AccountsService);
   private categoriesSvc = inject(CategoriesService);
+  private rulesSvc = inject(CategoryRulesService);
+  private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
   private familyCtx = inject(FamilyContextService);
 
@@ -188,7 +211,7 @@ export class LedgerPage {
 
   accounts = signal<AccountDto[]>([]);
   categories = signal<CategoryDto[]>([]);
-  columns = ['date', 'description', 'account', 'category', 'subCategory', 'amount'];
+  columns = ['date', 'description', 'account', 'category', 'amount', 'actions'];
 
   private accountsById = computed(() =>
     new Map(this.accounts().map(a => [a.id, a.name])));
@@ -254,14 +277,8 @@ export class LedgerPage {
 
   accountName(id: string): string { return this.accountsById().get(id) ?? id; }
 
-  subCategoriesFor(categoryId: string | null) {
-    if (!categoryId) return [];
-    return this.categories().find(c => c.id === categoryId)?.subCategories ?? [];
-  }
-
-  onCategoryChange(tx: TransactionDto, categoryId: string | null) {
-    // Changing category clears any prior sub-category.
-    this.txSvc.updateCategory(tx.id, categoryId, null).subscribe({
+  onCategorySelection(tx: TransactionDto, selection: CategorySelection) {
+    this.txSvc.updateCategory(tx.id, selection.categoryId, selection.subCategoryId).subscribe({
       next: updated => this.result.update(r => r
         ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
         : r),
@@ -269,13 +286,41 @@ export class LedgerPage {
     });
   }
 
-  onSubCategoryChange(tx: TransactionDto, subCategoryId: string | null) {
-    this.txSvc.updateCategory(tx.id, tx.categoryId, subCategoryId).subscribe({
-      next: updated => this.result.update(r => r
-        ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
-        : r),
+  openAppliedRule(ruleId: string) {
+    this.rulesSvc.get(ruleId).subscribe({
+      next: rule => {
+        this.dialog.open(RuleEditDialog, { data: { rule }, width: '480px' })
+          .afterClosed().subscribe((req: SaveCategoryRuleRequest | undefined) => {
+            if (!req) return;
+            this.rulesSvc.update(rule.id, req).subscribe({
+              next: () => this.snack.open('Rule updated', 'Close', { duration: 3000 }),
+              error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+            });
+          });
+      },
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
+  }
+
+  createRuleFrom(tx: TransactionDto) {
+    const prefill: Partial<SaveCategoryRuleRequest> = {
+      matchField: 'Description',
+      matchType: 'Contains',
+      pattern: tx.description,
+      targetCategoryId: tx.categoryId ?? '',
+      targetSubCategoryId: tx.subCategoryId ?? null,
+      scope: 'Family',
+      priority: 10,
+      isEnabled: true,
+    };
+    this.dialog.open(RuleEditDialog, { data: { prefill }, width: '480px' })
+      .afterClosed().subscribe((req: SaveCategoryRuleRequest | undefined) => {
+        if (!req) return;
+        this.rulesSvc.create(req).subscribe({
+          next: () => this.snack.open('Rule created', 'Close', { duration: 3000 }),
+          error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+        });
+      });
   }
 
   onPageChange(e: PageEvent) {
