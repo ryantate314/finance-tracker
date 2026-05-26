@@ -44,7 +44,8 @@ public class AppDbContext : DbContext
             .Where(e => e.State == EntityState.Added))
         {
             entry.Entity.CreatedUtc = now;
-            entry.Entity.FamilyId = _familyContext.ActiveFamilyId;
+            if (entry.Entity.FamilyId == Guid.Empty)
+                entry.Entity.FamilyId = _familyContext.ActiveFamilyId;
         }
         foreach (var entry in ChangeTracker.Entries<Family>()
             .Where(e => e.State == EntityState.Added))

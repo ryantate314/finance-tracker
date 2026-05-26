@@ -11,6 +11,10 @@ internal class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Id).ValueGeneratedOnAdd();
         builder.Property(c => c.Name).IsRequired().HasMaxLength(200);
+        builder.Property(c => c.Kind)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20);
 
         builder.HasIndex(c => c.FamilyId);
 

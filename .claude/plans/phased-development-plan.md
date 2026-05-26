@@ -116,11 +116,16 @@ transactatrack/
 
 **Goal**: Credit-card payments and inter-account moves don't inflate spending totals.
 
-- `TransferMatcher` service: pairs transactions where amounts are equal-and-opposite within ±N days (configurable, default 3) across two accounts in the same family.
-- Both sides flagged `isTransfer = true` and joined by `TransferGroupId`.
-- All spending aggregations exclude `isTransfer = true`.
+**Foundation already in place** (delivered alongside the analytics page):
+- `CategoryKind` enum on `Category` (`User`, `Transfer`); a per-family system `Transfer` category is seeded on family creation and cannot be deleted or renamed.
+- `Transaction.IsTransfer` is auto-synced from the chosen category's `Kind` in the manual `PATCH /api/transactions/{id}` path and in the rule-engine application path (both initial import and rerun).
+- LLM categorizer hides system categories from the prompt, so the model can never suggest "Transfer".
+- All spending aggregations already exclude `IsTransfer = true` (`AnalyticsController.cs`).
+
+**Still TODO for Phase 4**:
+- `TransferMatcher` service: pairs transactions where amounts are equal-and-opposite within ±N days (configurable, default 3) across two accounts in the same family. Sets `IsTransfer = true`, joins via `TransferGroupId`, and assigns the family's system Transfer category so the ledger displays consistently with manual tagging.
 - Runs on every import-commit and as a manual "rescan transfers" action.
-- Angular: visual transfer badge in the ledger; right-click → "Unlink transfer" escape hatch (sets isTransfer=false on both sides).
+- Angular: visual transfer badge in the ledger; right-click → "Unlink transfer" escape hatch (clears `TransferGroupId` and reverts category/IsTransfer on both sides).
 
 **Verify**: Import a credit-card statement and a checking statement that pays it; the matching pair shows a transfer badge and disappears from category totals.
 

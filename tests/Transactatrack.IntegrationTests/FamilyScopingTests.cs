@@ -99,21 +99,26 @@ public class FamilyScopingTests : IClassFixture<IntegrationTestFactory>
 
         var categoryResp = await clientF.PostAsJsonAsync("/api/categories", new CreateCategoryRequest("Food"));
         categoryResp.EnsureSuccessStatusCode();
-        var category = await categoryResp.Content.ReadFromJsonAsync<CategoryDto>();
+        var category = await categoryResp.Content.ReadFromJsonAsync<CategoryDto>(IntegrationTestFactory.JsonOpts);
 
         var subResp = await clientF.PostAsJsonAsync($"/api/categories/{category!.Id}/subcategories", new CreateSubCategoryRequest("Groceries"));
         subResp.EnsureSuccessStatusCode();
-        var sub = await subResp.Content.ReadFromJsonAsync<SubCategoryDto>();
+        var sub = await subResp.Content.ReadFromJsonAsync<SubCategoryDto>(IntegrationTestFactory.JsonOpts);
 
         var listResp = await clientF.GetAsync("/api/categories");
-        var categories = await listResp.Content.ReadFromJsonAsync<List<CategoryDto>>();
+        var categories = await listResp.Content.ReadFromJsonAsync<List<CategoryDto>>(IntegrationTestFactory.JsonOpts);
 
-        Assert.Single(categories!);
-        var food = categories![0];
-        Assert.Equal("Food", food.Name);
+        // Family creation seeds a Transfer system category in addition to the user's Food category.
+        Assert.Equal(2, categories!.Count);
+        var food = categories.Single(c => c.Name == "Food");
+        Assert.Equal(CategoryKind.User, food.Kind);
         Assert.Single(food.SubCategories);
         Assert.Equal("Groceries", food.SubCategories[0].Name);
-        Assert.Equal(category.Id, food.SubCategories[0].CategoryId);
+        Assert.Equal(category!.Id, food.SubCategories[0].CategoryId);
+
+        var transfer = categories.Single(c => c.Kind == CategoryKind.Transfer);
+        Assert.Equal("Transfer", transfer.Name);
+        Assert.Empty(transfer.SubCategories);
     }
 
     [Fact]

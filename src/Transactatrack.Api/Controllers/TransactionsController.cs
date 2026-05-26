@@ -129,8 +129,16 @@ public class TransactionsController : ControllerBase
                 return BadRequest(new { title = "SubCategoryId must belong to CategoryId.", status = 400 });
         }
 
+        var targetKind = request.CategoryId is null
+            ? CategoryKind.User
+            : await _db.Categories
+                .Where(c => c.Id == request.CategoryId.Value)
+                .Select(c => (CategoryKind?)c.Kind)
+                .FirstOrDefaultAsync(ct) ?? CategoryKind.User;
+
         tx.CategoryId = request.CategoryId;
         tx.SubCategoryId = subCategoryId;
+        tx.IsTransfer = targetKind == CategoryKind.Transfer;
         tx.CategorizationSource = CategorizationSource.Manual;
         tx.NeedsReview = false;
         tx.AppliedRuleId = null;

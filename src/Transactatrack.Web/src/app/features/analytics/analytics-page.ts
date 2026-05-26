@@ -21,6 +21,7 @@ import { AnalyticsService, CategoryBreakdownItem, MonthlyCashflowItem } from './
 import { DateRange, RangePreset, formatRangeLabel, presetRange, shiftRange } from './time-range';
 
 interface PieDatum { name: string; value: number; }
+interface BreakdownRow { categoryId: string | null; name: string; amount: number; count: number; pct: number; }
 interface BarSeriesPoint { name: string; value: number; }
 interface BarGroup { name: string; series: BarSeriesPoint[]; }
 interface LineSeriesPoint { name: string; value: number; }
@@ -114,7 +115,7 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
       </mat-card>
     </div>
 
-    <div class="charts-grid">
+    <div class="charts-grid" [class.charts-grid--single]="singleMonth()">
       <mat-card class="chart-card">
         <mat-card-header>
           <mat-card-title>Expense breakdown by category</mat-card-title>
@@ -123,21 +124,52 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
           @if (pieData().length === 0) {
             <div class="empty">No expense data in this range.</div>
           } @else {
-            <ngx-charts-pie-chart
-              [view]="[700, 420]"
-              [results]="pieData()"
-              [scheme]="pieScheme"
-              [labels]="true"
-              [trimLabels]="false"
-              [legend]="true"
-              [legendPosition]="legendBelow"
-              [tooltipText]="pieTooltip"
-              (select)="onPieSelect($event)">
-            </ngx-charts-pie-chart>
+            <div class="breakdown-body" [class.breakdown-body--split]="singleMonth()">
+            <div class="chart-wrap chart-wrap--pie">
+              <ngx-charts-pie-chart
+                [results]="pieData()"
+                [scheme]="pieScheme"
+                [labels]="true"
+                [trimLabels]="false"
+                [legend]="false"
+                [tooltipText]="pieTooltip"
+                (select)="onPieSelect($event)">
+              </ngx-charts-pie-chart>
+            </div>
+            <table class="breakdown-table">
+              <thead>
+                <tr>
+                  <th class="col-cat">Category</th>
+                  <th class="col-num">Amount</th>
+                  <th class="col-num">% of total</th>
+                  <th class="col-num">Txns</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of breakdownRows(); track row.categoryId ?? row.name) {
+                  <tr [class.clickable]="row.categoryId" (click)="onBreakdownRowClick(row)">
+                    <td class="col-cat">{{ row.name }}</td>
+                    <td class="col-num">{{ row.amount | number:'1.2-2' }}</td>
+                    <td class="col-num">{{ row.pct | number:'1.1-1' }}%</td>
+                    <td class="col-num">{{ row.count }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td class="col-cat">Total</td>
+                  <td class="col-num">{{ breakdownTotal() | number:'1.2-2' }}</td>
+                  <td class="col-num">100.0%</td>
+                  <td class="col-num">{{ breakdownTxnTotal() }}</td>
+                </tr>
+              </tfoot>
+            </table>
+            </div>
           }
         </mat-card-content>
       </mat-card>
 
+      @if (!singleMonth()) {
       <mat-card class="chart-card">
         <mat-card-header>
           <mat-card-title>Monthly cash flow</mat-card-title>
@@ -146,37 +178,41 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
           @if (barData().length === 0) {
             <div class="empty">No transactions in this range.</div>
           } @else {
-            <ngx-charts-bar-vertical-stacked
-              [view]="[700, 320]"
-              [results]="barData()"
-              [scheme]="cashflowScheme"
-              [xAxis]="true"
-              [yAxis]="true"
-              [legend]="true"
-              [legendPosition]="legendBelow"
-              [showXAxisLabel]="false"
-              [showYAxisLabel]="false"
-              [yAxisTickFormatting]="currencyFormat">
-            </ngx-charts-bar-vertical-stacked>
-            <ngx-charts-line-chart
-              [view]="[700, 180]"
-              [results]="lineData()"
-              [scheme]="netLineScheme"
-              [xAxis]="true"
-              [yAxis]="true"
-              [legend]="false"
-              [autoScale]="true"
-              [showXAxisLabel]="false"
-              [showYAxisLabel]="true"
-              yAxisLabel="Net"
-              [yAxisTickFormatting]="currencyFormat">
-            </ngx-charts-line-chart>
+            <div class="chart-wrap chart-wrap--bar">
+              <ngx-charts-bar-vertical-stacked
+                [results]="barData()"
+                [scheme]="cashflowScheme"
+                [xAxis]="true"
+                [yAxis]="true"
+                [legend]="true"
+                [legendPosition]="legendBelow"
+                [showXAxisLabel]="false"
+                [showYAxisLabel]="false"
+                [yAxisTickFormatting]="currencyFormat">
+              </ngx-charts-bar-vertical-stacked>
+            </div>
+            <div class="chart-wrap chart-wrap--line">
+              <ngx-charts-line-chart
+                [results]="lineData()"
+                [scheme]="netLineScheme"
+                [xAxis]="true"
+                [yAxis]="true"
+                [legend]="false"
+                [autoScale]="true"
+                [showXAxisLabel]="false"
+                [showYAxisLabel]="true"
+                yAxisLabel="Net"
+                [yAxisTickFormatting]="currencyFormat">
+              </ngx-charts-line-chart>
+            </div>
           }
         </mat-card-content>
       </mat-card>
+      }
     </div>
   `,
   styles: [`
+    :host { display: block; padding-bottom: 32px; }
     .page-header { display: flex; align-items: baseline; justify-content: space-between; padding: 16px 0; gap: 12px; }
     .muted { color: rgba(0,0,0,0.55); font-size: 0.95rem; }
     .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-bottom: 16px; }
@@ -188,10 +224,27 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
     .stat-value { font-size: 1.6rem; font-weight: 500; }
     .stat-value.income { color: #2e7d32; }
     .stat-value.expense { color: #b00020; }
-    .charts-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-    @media (min-width: 1280px) { .charts-grid { grid-template-columns: 1fr 1fr; } }
-    .chart-card mat-card-content { display: flex; flex-direction: column; gap: 8px; }
+    .charts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    @media (min-width: 1280px) { .charts-grid:not(.charts-grid--single) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+    .chart-card { min-width: 0; }
+    .chart-card mat-card-content { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .breakdown-body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    @media (min-width: 900px) {
+      .breakdown-body--split { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 1.4fr); gap: 24px; align-items: start; }
+    }
+    .chart-wrap { width: 100%; min-width: 0; }
+    .chart-wrap--pie { height: 320px; max-width: 460px; margin-left: auto; margin-right: auto; }
+    .chart-wrap--bar { height: 320px; }
+    .chart-wrap--line { height: 200px; }
+    .chart-wrap :where(ngx-charts-pie-chart, ngx-charts-bar-vertical-stacked, ngx-charts-line-chart) { display: block; width: 100%; height: 100%; }
     .empty { padding: 32px; text-align: center; color: rgba(0,0,0,0.55); }
+    .breakdown-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 8px; }
+    .breakdown-table th, .breakdown-table td { padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    .breakdown-table thead th { text-align: left; font-weight: 600; color: rgba(0,0,0,0.7); border-bottom: 1px solid rgba(0,0,0,0.18); }
+    .breakdown-table .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .breakdown-table tfoot td { font-weight: 600; border-top: 1px solid rgba(0,0,0,0.18); border-bottom: none; }
+    .breakdown-table tr.clickable { cursor: pointer; }
+    .breakdown-table tr.clickable:hover { background: rgba(0,0,0,0.04); }
   `],
 })
 export class AnalyticsPage {
@@ -241,8 +294,30 @@ export class AnalyticsPage {
 
   rangeLabel = computed(() => formatRangeLabel(this.preset(), this.range()));
 
+  singleMonth = computed(() => {
+    const { from, to } = this.range();
+    return from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth();
+  });
+
   pieData = computed<PieDatum[]>(() =>
     this.pie().map(b => ({ name: b.categoryName, value: b.amount })));
+
+  breakdownRows = computed<BreakdownRow[]>(() => {
+    const items = this.pie();
+    const total = items.reduce((s, b) => s + b.amount, 0);
+    return [...items]
+      .sort((a, b) => b.amount - a.amount)
+      .map(b => ({
+        categoryId: b.categoryId,
+        name: b.categoryName,
+        amount: b.amount,
+        count: b.transactionCount,
+        pct: total > 0 ? (b.amount / total) * 100 : 0,
+      }));
+  });
+
+  breakdownTotal = computed(() => this.pie().reduce((s, b) => s + b.amount, 0));
+  breakdownTxnTotal = computed(() => this.pie().reduce((s, b) => s + b.transactionCount, 0));
 
   barData = computed<BarGroup[]>(() =>
     this.cashflow().map(m => ({
@@ -331,14 +406,22 @@ export class AnalyticsPage {
   onPieSelect(event: { name: string; value: number }) {
     const item = this.pie().find(p => p.categoryName === event.name);
     if (!item) return;
-    if (!item.categoryId) {
+    this.drilldownToCategory(item.categoryId);
+  }
+
+  onBreakdownRowClick(row: BreakdownRow) {
+    this.drilldownToCategory(row.categoryId);
+  }
+
+  private drilldownToCategory(categoryId: string | null) {
+    if (!categoryId) {
       this.snack.open('Drill-down for Uncategorized is not supported yet.', 'Close', { duration: 3000 });
       return;
     }
     const range = this.range();
     this.router.navigate(['/ledger'], {
       queryParams: {
-        categoryIds: item.categoryId,
+        categoryIds: categoryId,
         from: dateToYmd(range.from),
         to: dateToYmd(range.to),
         accountIds: this.accountIds().length ? this.accountIds().join(',') : null,

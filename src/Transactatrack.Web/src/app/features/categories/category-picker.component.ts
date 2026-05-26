@@ -124,10 +124,7 @@ export class CategoryPicker {
     if (typeof v !== 'string') return this.options();
     const q = v.trim().toLowerCase();
     if (!q) return this.options();
-    // After a selection, ctrl holds the displayed string. Don't treat that as a search.
-    const opts = this.options();
-    if (opts.some(o => o.display.toLowerCase() === q)) return opts;
-    return opts.filter(o => o.search.includes(q));
+    return this.options().filter(o => o.search.includes(q));
   });
 
   constructor() {

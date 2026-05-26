@@ -23,8 +23,10 @@ public class AnalyticsController : ControllerBase
     {
         var accountIdList = ParseGuidList(accountIds);
 
+        // Sum signed amounts per category so refunds (positive) net against expenses (negative)
+        // in the same category. Then keep only categories that net to a real expense.
         var query = BuildBaseQuery(accountIdList, from, to)
-            .Where(t => !t.IsTransfer && t.Amount < 0);
+            .Where(t => !t.IsTransfer);
 
         var grouped = await (
             from t in query
@@ -40,6 +42,7 @@ public class AnalyticsController : ControllerBase
             }).ToListAsync(ct);
 
         var items = grouped
+            .Where(g => g.Amount < 0)
             .Select(g => new CategoryBreakdownItemDto(
                 g.CategoryId,
                 g.CategoryName ?? "Uncategorized",

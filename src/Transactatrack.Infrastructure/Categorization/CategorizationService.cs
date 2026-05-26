@@ -50,6 +50,8 @@ public class CategorizationService : ICategorizationService
 
         if (rules.Count == 0) return;
 
+        var categoryKinds = await _db.Categories.ToDictionaryAsync(c => c.Id, c => c.Kind, ct);
+
         var now = DateTime.UtcNow;
         foreach (var tx in transactions)
         {
@@ -62,6 +64,7 @@ public class CategorizationService : ICategorizationService
 
             tx.CategoryId = result.Value.CategoryId;
             tx.SubCategoryId = result.Value.SubCategoryId;
+            tx.IsTransfer = categoryKinds.TryGetValue(result.Value.CategoryId, out var k) && k == CategoryKind.Transfer;
             tx.CategorizationSource = CategorizationSource.Rule;
             tx.AppliedRuleId = result.Value.RuleId;
             tx.NeedsReview = false;
@@ -105,8 +108,11 @@ public class CategorizationService : ICategorizationService
 
             try
             {
-                var categories = await db.Categories.ToListAsync();
-                var subCategories = await db.SubCategories.ToListAsync();
+                // Only User-kind categories are eligible LLM suggestions; transfers require cross-account
+                // context the LLM doesn't have, so we hide them and leave that to the user / TransferMatcher.
+                var categories = await db.Categories.Where(c => c.Kind == CategoryKind.User).ToListAsync();
+                var categoryIds = categories.Select(c => c.Id).ToHashSet();
+                var subCategories = await db.SubCategories.Where(s => categoryIds.Contains(s.CategoryId)).ToListAsync();
                 var now = DateTime.UtcNow;
 
                 for (var i = 0; i < uncategorized.Count; i += LlmBatchSize)
@@ -175,6 +181,8 @@ public class CategorizationService : ICategorizationService
             .OrderBy(r => r.Priority)
             .ToListAsync(ct);
 
+        var categoryKinds = await _db.Categories.ToDictionaryAsync(c => c.Id, c => c.Kind, ct);
+
         var now = DateTime.UtcNow;
         foreach (var tx in transactions)
         {
@@ -186,6 +194,7 @@ public class CategorizationService : ICategorizationService
 
             tx.CategoryId = result.Value.CategoryId;
             tx.SubCategoryId = result.Value.SubCategoryId;
+            tx.IsTransfer = categoryKinds.TryGetValue(result.Value.CategoryId, out var k) && k == CategoryKind.Transfer;
             tx.CategorizationSource = CategorizationSource.Rule;
             tx.AppliedRuleId = result.Value.RuleId;
             tx.NeedsReview = false;

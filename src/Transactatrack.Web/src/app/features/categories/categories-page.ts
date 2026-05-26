@@ -39,8 +39,12 @@ import { CategoriesService, CategoryDto, SubCategoryDto } from './categories.ser
                 <button mat-icon-button aria-label="Cancel" (click)="cancelEdit(); $event.stopPropagation()"><mat-icon>close</mat-icon></button>
               } @else {
                 <span class="category-name">{{ cat.name }}</span>
-                <button mat-icon-button aria-label="Edit category" (click)="startCategoryEdit(cat); $event.stopPropagation()"><mat-icon>edit</mat-icon></button>
-                <button mat-icon-button aria-label="Delete category" (click)="deleteCategory(cat); $event.stopPropagation()"><mat-icon>delete</mat-icon></button>
+                @if (cat.kind !== 'User') {
+                  <mat-icon class="system-badge" aria-label="System category" title="System category">lock</mat-icon>
+                } @else {
+                  <button mat-icon-button aria-label="Edit category" (click)="startCategoryEdit(cat); $event.stopPropagation()"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button aria-label="Delete category" (click)="deleteCategory(cat); $event.stopPropagation()"><mat-icon>delete</mat-icon></button>
+                }
               }
             </mat-panel-title>
           </mat-expansion-panel-header>
@@ -109,6 +113,7 @@ import { CategoriesService, CategoryDto, SubCategoryDto } from './categories.ser
     .inline-field { flex: 1; }
     .new-category-row { margin-top: 16px; display: flex; align-items: center; gap: 8px; }
     .add-row { padding-top: 8px; }
+    .system-badge { color: rgba(0,0,0,0.45); font-size: 18px; width: 18px; height: 18px; margin: 0 8px; }
   `],
 })
 export class CategoriesPage {

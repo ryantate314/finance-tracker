@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Transactatrack.Application.Categories;
 using Transactatrack.Domain.Entities;
+using Transactatrack.Domain.Enums;
 using Transactatrack.Infrastructure.Persistence;
 
 namespace Transactatrack.Api.Controllers;
@@ -22,7 +23,7 @@ public class CategoriesController : ControllerBase
         var categories = await _db.Categories
             .OrderBy(c => c.Name)
             .Select(c => new CategoryDto(
-                c.Id, c.Name, c.CreatedUtc,
+                c.Id, c.Name, c.Kind, c.CreatedUtc,
                 _db.SubCategories
                     .Where(s => s.CategoryId == c.Id)
                     .OrderBy(s => s.Name)
@@ -42,7 +43,7 @@ public class CategoriesController : ControllerBase
             .OrderBy(s => s.Name)
             .Select(s => new SubCategoryDto(s.Id, s.CategoryId, s.Name, s.CreatedUtc))
             .ToListAsync();
-        return Ok(new CategoryDto(category.Id, category.Name, category.CreatedUtc, subs));
+        return Ok(new CategoryDto(category.Id, category.Name, category.Kind, category.CreatedUtc, subs));
     }
 
     [HttpPost]
@@ -52,7 +53,7 @@ public class CategoriesController : ControllerBase
         _db.Categories.Add(category);
         await _db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { id = category.Id },
-            new CategoryDto(category.Id, category.Name, category.CreatedUtc, []));
+            new CategoryDto(category.Id, category.Name, category.Kind, category.CreatedUtc, []));
     }
 
     [HttpPut("{id:guid}")]
@@ -60,6 +61,8 @@ public class CategoriesController : ControllerBase
     {
         var category = await _db.Categories.FindAsync(id);
         if (category is null) return NotFound();
+        if (category.Kind != CategoryKind.User)
+            return Conflict(new { title = "System category cannot be renamed", status = 409 });
         category.Name = request.Name;
         await _db.SaveChangesAsync();
         return NoContent();
@@ -70,6 +73,8 @@ public class CategoriesController : ControllerBase
     {
         var category = await _db.Categories.FindAsync(id);
         if (category is null) return NotFound();
+        if (category.Kind != CategoryKind.User)
+            return Conflict(new { title = "System category cannot be deleted", status = 409 });
         _db.Categories.Remove(category);
         try { await _db.SaveChangesAsync(); }
         catch (DbUpdateException) { return Conflict(new { title = "Category has dependent records", status = 409 }); }

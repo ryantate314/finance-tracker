@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Transactatrack.Application.Families;
 using Transactatrack.Domain.Entities;
+using Transactatrack.Domain.Enums;
 using Transactatrack.Infrastructure.Persistence;
 
 namespace Transactatrack.Api.Controllers;
@@ -38,6 +39,12 @@ public class FamiliesController : ControllerBase
         var family = new Family { Name = request.Name };
         _db.Families.Add(family);
         await _db.SaveChangesAsync();
+
+        // System Transfer category. /api/families is unscoped (no X-Family-Id), so we set
+        // FamilyId explicitly; AppDbContext only auto-stamps when FamilyId is Guid.Empty.
+        _db.Categories.Add(new Category { FamilyId = family.Id, Name = "Transfer", Kind = CategoryKind.Transfer });
+        await _db.SaveChangesAsync();
+
         var dto = new FamilyDto(family.Id, family.Name, family.CreatedUtc);
         return CreatedAtAction(nameof(Get), new { id = family.Id }, dto);
     }

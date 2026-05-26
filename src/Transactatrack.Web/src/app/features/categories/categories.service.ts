@@ -9,9 +9,12 @@ export interface SubCategoryDto {
   createdUtc: string;
 }
 
+export type CategoryKind = 'User' | 'Transfer';
+
 export interface CategoryDto {
   id: string;
   name: string;
+  kind: CategoryKind;
   createdUtc: string;
   subCategories: SubCategoryDto[];
 }
