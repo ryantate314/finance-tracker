@@ -145,6 +145,8 @@ transactatrack/
 
 **Verify**: Filter to "last 30 days, joint accounts only, exclude transfers" and totals match a hand-computed sum from the ledger.
 
+**Aggregation hook**: prefer `Category.Kind` (User / Transfer / Income — see `.claude/plans/income-system-category.md`) over names, signs, or per-report rules. New report types should bucket on `Kind`; if a third semantic bucket is needed, extend the enum and seed a system category rather than re-inventing classification logic per endpoint.
+
 ---
 
 ## Phase 6 — Production Deploy to Portainer

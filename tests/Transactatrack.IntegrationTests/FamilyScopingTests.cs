@@ -108,8 +108,8 @@ public class FamilyScopingTests : IClassFixture<IntegrationTestFactory>
         var listResp = await clientF.GetAsync("/api/categories");
         var categories = await listResp.Content.ReadFromJsonAsync<List<CategoryDto>>(IntegrationTestFactory.JsonOpts);
 
-        // Family creation seeds a Transfer system category in addition to the user's Food category.
-        Assert.Equal(2, categories!.Count);
+        // Family creation seeds Transfer + Income system categories in addition to the user's Food category.
+        Assert.Equal(3, categories!.Count);
         var food = categories.Single(c => c.Name == "Food");
         Assert.Equal(CategoryKind.User, food.Kind);
         Assert.Single(food.SubCategories);
@@ -119,6 +119,10 @@ public class FamilyScopingTests : IClassFixture<IntegrationTestFactory>
         var transfer = categories.Single(c => c.Kind == CategoryKind.Transfer);
         Assert.Equal("Transfer", transfer.Name);
         Assert.Empty(transfer.SubCategories);
+
+        var income = categories.Single(c => c.Kind == CategoryKind.Income);
+        Assert.Equal("Income", income.Name);
+        Assert.Empty(income.SubCategories);
     }
 
     [Fact]

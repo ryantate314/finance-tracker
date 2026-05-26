@@ -40,9 +40,10 @@ public class FamiliesController : ControllerBase
         _db.Families.Add(family);
         await _db.SaveChangesAsync();
 
-        // System Transfer category. /api/families is unscoped (no X-Family-Id), so we set
+        // System categories. /api/families is unscoped (no X-Family-Id), so we set
         // FamilyId explicitly; AppDbContext only auto-stamps when FamilyId is Guid.Empty.
         _db.Categories.Add(new Category { FamilyId = family.Id, Name = "Transfer", Kind = CategoryKind.Transfer });
+        _db.Categories.Add(new Category { FamilyId = family.Id, Name = "Income", Kind = CategoryKind.Income });
         await _db.SaveChangesAsync();
 
         var dto = new FamilyDto(family.Id, family.Name, family.CreatedUtc);

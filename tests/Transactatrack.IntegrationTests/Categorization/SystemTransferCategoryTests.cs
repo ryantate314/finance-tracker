@@ -29,9 +29,11 @@ public class SystemTransferCategoryTests : IClassFixture<IntegrationTestFactory>
         var client = _factory.CreateClientWithFamily(family.Id);
         var categories = (await client.GetFromJsonAsync<List<CategoryDto>>("/api/categories", IntegrationTestFactory.JsonOpts))!;
 
-        Assert.Single(categories);
-        Assert.Equal("Transfer", categories[0].Name);
-        Assert.Equal(CategoryKind.Transfer, categories[0].Kind);
+        Assert.Equal(2, categories.Count);
+        var transfer = categories.Single(c => c.Kind == CategoryKind.Transfer);
+        Assert.Equal("Transfer", transfer.Name);
+        var income = categories.Single(c => c.Kind == CategoryKind.Income);
+        Assert.Equal("Income", income.Name);
     }
 
     [Fact]

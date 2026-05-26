@@ -108,9 +108,9 @@ public class CategorizationService : ICategorizationService
 
             try
             {
-                // Only User-kind categories are eligible LLM suggestions; transfers require cross-account
-                // context the LLM doesn't have, so we hide them and leave that to the user / TransferMatcher.
-                var categories = await db.Categories.Where(c => c.Kind == CategoryKind.User).ToListAsync();
+                // Transfers require cross-account context the LLM doesn't have, so we hide them and
+                // leave that to the user / TransferMatcher. Income is fair game from row descriptions.
+                var categories = await db.Categories.Where(c => c.Kind != CategoryKind.Transfer).ToListAsync();
                 var categoryIds = categories.Select(c => c.Id).ToHashSet();
                 var subCategories = await db.SubCategories.Where(s => categoryIds.Contains(s.CategoryId)).ToListAsync();
                 var now = DateTime.UtcNow;

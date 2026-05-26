@@ -9,7 +9,7 @@ export interface SubCategoryDto {
   createdUtc: string;
 }
 
-export type CategoryKind = 'User' | 'Transfer';
+export type CategoryKind = 'User' | 'Transfer' | 'Income';
 
 export interface CategoryDto {
   id: string;

@@ -69,14 +69,26 @@ public class AnalyticsController : ControllerBase
         var query = BuildBaseQuery(accountIdList, from, to)
             .Where(t => !t.IsTransfer);
 
-        var grouped = await query
-            .GroupBy(t => new { t.Date.Year, t.Date.Month })
+        // Bucket by Category.Kind: rows joined to an Income-kind category go to the income bucket
+        // (refunds within Income net correctly). Uncategorized rows are split by sign — positive
+        // ones land in income so a not-yet-tagged paycheck still shows up as income. Everything
+        // else (categorized non-income + uncategorized negatives) goes to expense.
+        var joined =
+            from t in query
+            join c in _db.Categories on t.CategoryId equals c.Id into cj
+            from c in cj.DefaultIfEmpty()
+            select new { t.Date, t.Amount, Kind = (CategoryKind?)(c != null ? c.Kind : (CategoryKind?)null) };
+
+        var grouped = await joined
+            .GroupBy(x => new { x.Date.Year, x.Date.Month })
             .Select(g => new
             {
                 g.Key.Year,
                 g.Key.Month,
-                Income = g.Where(t => t.Amount > 0).Sum(t => (decimal?)t.Amount) ?? 0m,
-                Expense = g.Where(t => t.Amount < 0).Sum(t => (decimal?)t.Amount) ?? 0m
+                Income = g.Where(x => x.Kind == CategoryKind.Income || (x.Kind == null && x.Amount > 0))
+                          .Sum(x => (decimal?)x.Amount) ?? 0m,
+                Expense = g.Where(x => x.Kind != CategoryKind.Income && !(x.Kind == null && x.Amount > 0))
+                           .Sum(x => (decimal?)x.Amount) ?? 0m
             })
             .ToListAsync(ct);
 
