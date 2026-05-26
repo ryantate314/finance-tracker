@@ -12,4 +12,5 @@ export const routes: Routes = [
   { path: 'imports/:id', loadComponent: () => import('./features/imports/import-preview-page').then(m => m.ImportPreviewPage) },
   { path: 'ledger', loadComponent: () => import('./features/ledger/ledger-page').then(m => m.LedgerPage) },
   { path: 'rules', loadComponent: () => import('./features/rules/rules-page').then(m => m.RulesPage) },
+  { path: 'analytics', loadComponent: () => import('./features/analytics/analytics-page').then(m => m.AnalyticsPage) },
 ];

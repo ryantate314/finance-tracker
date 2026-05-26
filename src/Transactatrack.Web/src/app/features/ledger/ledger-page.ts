@@ -15,6 +15,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { ActivatedRoute } from '@angular/router';
 import { Subject, merge } from 'rxjs';
 import { debounceTime, switchMap } from 'rxjs/operators';
 import { extractErrorMessage } from '../../core/api/api-error';
@@ -197,6 +198,7 @@ export class LedgerPage {
   private dialog = inject(MatDialog);
   private snack = inject(MatSnackBar);
   private familyCtx = inject(FamilyContextService);
+  private route = inject(ActivatedRoute);
 
   qCtrl = new FormControl('', { nonNullable: true });
   fromCtrl = new FormControl<Date | null>(null);
@@ -226,6 +228,8 @@ export class LedgerPage {
   private query$ = new Subject<LedgerQuery>();
 
   constructor() {
+    this.hydrateFromUrl();
+
     merge(
       this.qCtrl.valueChanges.pipe(debounceTime(250)),
       this.fromCtrl.valueChanges,
@@ -337,4 +341,38 @@ export class LedgerPage {
     this.needsReviewCtrl.setValue(false);
     this.page.set(1);
   }
+
+  private hydrateFromUrl() {
+    const params = this.route.snapshot.queryParamMap;
+    const q = params.get('q');
+    if (q) this.qCtrl.setValue(q);
+
+    const from = parseYmd(params.get('from'));
+    if (from) this.fromCtrl.setValue(from);
+
+    const to = parseYmd(params.get('to'));
+    if (to) this.toCtrl.setValue(to);
+
+    const accountIds = csvToList(params.get('accountIds'));
+    if (accountIds.length) this.accountIdsCtrl.setValue(accountIds);
+
+    const categoryIds = csvToList(params.get('categoryIds'));
+    if (categoryIds.length) this.categoryIdsCtrl.setValue(categoryIds);
+
+    const needsReview = params.get('needsReview');
+    if (needsReview === 'true') this.needsReviewCtrl.setValue(true);
+  }
+}
+
+function parseYmd(s: string | null): Date | null {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function csvToList(s: string | null): string[] {
+  if (!s) return [];
+  return s.split(',').map(x => x.trim()).filter(x => x.length > 0);
 }
