@@ -28,6 +28,9 @@
     <None Include="..\Transactatrack.IntegrationTests\TestData\ChaseSample.csv" Link="TestData\ChaseSample.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Transactatrack.IntegrationTests\TestData\MmcuSample.html" Link="TestData\MmcuSample.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -29,8 +29,8 @@ import { AccountDto, AccountsService } from '../accounts/accounts.service';
         </mat-form-field>
 
         <div class="file-row">
-          <button mat-stroked-button type="button" (click)="picker.click()">Choose CSV…</button>
-          <input #picker type="file" accept=".csv,text/csv" hidden (change)="onFileSelected($event)" />
+          <button mat-stroked-button type="button" (click)="picker.click()">Choose file…</button>
+          <input #picker type="file" accept=".csv,text/csv,.html,.htm,text/html" hidden (change)="onFileSelected($event)" />
           @if (selectedFile()) {
             <span class="filename">{{ selectedFile()!.name }}</span>
           } @else {

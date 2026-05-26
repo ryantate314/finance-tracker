@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Summary</title>
+</head>
+<body>
+<table class="table table-striped table-condensed " style="width:90%" id="tblPosted">
+    <colgroup>
+        <col style="width:1%">
+        <col style="width:5%">
+        <col style="width:20%">
+        <col style="width:2%">
+        <col style="width:5%">
+        <col style="width:5%">
+    </colgroup>
+    <thead>
+        <tr>
+            <th></th>
+            <th>Posted Date</th>
+            <th>Activity/Description</th>
+            <th class="align-right">Draft</th>
+            <th class="align-right">Amount</th>
+            <th class="align-right">Balance</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Row 1: ACH credit (positive) — Effective Date == Posted Date -->
+        <tr>
+            <td><a class="btn collapse-trigger" href="#details-row-1">+</a></td>
+            <td class="align-right">05/26/2026</td>
+            <td>
+                ACH Transaction/EFT-VENMO/CASHOUT
+                <div class="it-details-row collapse" id="details-row-1">
+                    <dl class="dl-horizontal it-tran-details">
+                        <dt>Transaction Type</dt>
+                        <dd>Share Deposit</dd>
+                        <dt>Effective Date</dt>
+                        <dd>05/26/2026</dd>
+                    </dl>
+                </div>
+            </td>
+            <td class="align-right"></td>
+            <td class="positive align-right"><span class="positive">$214.00</span></td>
+            <td class="negative align-right"><span class="positive">$35,112.89</span></td>
+        </tr>
+        <!-- Row 2: Plain Share Withdrawal (negative) -->
+        <tr>
+            <td><a class="btn collapse-trigger" href="#details-row-2">+</a></td>
+            <td class="align-right">05/21/2026</td>
+            <td>
+                Share Withdrawal
+                <div class="it-details-row collapse" id="details-row-2">
+                    <dl class="dl-horizontal it-tran-details">
+                        <dt>Transaction Type</dt>
+                        <dd>Share Withdrawal</dd>
+                        <dt>Effective Date</dt>
+                        <dd>05/21/2026</dd>
+                    </dl>
+                </div>
+            </td>
+            <td class="align-right"></td>
+            <td class="positive align-right"><span class="negative">($90.00)</span></td>
+            <td class="negative align-right"><span class="positive">$32,928.62</span></td>
+        </tr>
+        <!-- Row 3: Share Draft / check (negative, with check widget in col 4) -->
+        <tr>
+            <td><a class="btn collapse-trigger" href="#details-row-3">+</a></td>
+            <td class="align-right">04/20/2026</td>
+            <td>
+                Share Draft/TR:0090710502
+                <div class="it-details-row collapse" id="details-row-3">
+                    <dl class="dl-horizontal it-tran-details">
+                        <dt>Transaction Type</dt>
+                        <dd>Share Withdrawal</dd>
+                        <dt>Effective Date</dt>
+                        <dd>04/20/2026</dd>
+                    </dl>
+                </div>
+            </td>
+            <td class="align-right">
+                <span id="8241" class="k-button" data-acct="157920" data-share="7" data-amount="-1250" data-postdate="4/20/2026 3:41:00 PM" style="color:blue">8241</span>
+            </td>
+            <td class="positive align-right"><span class="negative">($1,250.00)</span></td>
+            <td class="negative align-right"><span class="positive">$6,388.15</span></td>
+        </tr>
+        <!-- Row 4: ATM withdrawal (negative) -->
+        <tr>
+            <td><a class="btn collapse-trigger" href="#details-row-4">+</a></td>
+            <td class="align-right">04/20/2026</td>
+            <td>
+                ATM Posting/ATM- 0/41--VALE RD    US-TN MARYVILLE
+                <div class="it-details-row collapse" id="details-row-4">
+                    <dl class="dl-horizontal it-tran-details">
+                        <dt>Transaction Type</dt>
+                        <dd>Share Withdrawal</dd>
+                        <dt>Effective Date</dt>
+                        <dd>04/20/2026</dd>
+                    </dl>
+                </div>
+            </td>
+            <td class="align-right"></td>
+            <td class="positive align-right"><span class="negative">($13.18)</span></td>
+            <td class="negative align-right"><span class="positive">$7,638.15</span></td>
+        </tr>
+        <!-- Row 5: Effective Date differs from Posted Date (weekend posting scenario) -->
+        <tr>
+            <td><a class="btn collapse-trigger" href="#details-row-5">+</a></td>
+            <td class="align-right">03/02/2026</td>
+            <td>
+                Debit Card Purchase/POS-AMAZON.COM
+                <div class="it-details-row collapse" id="details-row-5">
+                    <dl class="dl-horizontal it-tran-details">
+                        <dt>Transaction Type</dt>
+                        <dd>Share Withdrawal</dd>
+                        <dt>Effective Date</dt>
+                        <dd>02/28/2026</dd>
+                    </dl>
+                </div>
+            </td>
+            <td class="align-right"></td>
+            <td class="positive align-right"><span class="negative">($42.99)</span></td>
+            <td class="negative align-right"><span class="positive">$9,015.40</span></td>
+        </tr>
+    </tbody>
+</table>
+</body>
+</html>

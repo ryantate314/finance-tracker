@@ -50,12 +50,18 @@ export interface ImportBatchDetailDto {
   transactions: ImportPreviewRowDto[];
 }
 
+export interface BankDto {
+  bankCode: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ImportsService {
   private http = inject(HttpClient);
   private base = `${environment.apiBaseUrl}/imports`;
 
   list() { return this.http.get<ImportBatchDto[]>(this.base); }
+
+  listBanks() { return this.http.get<BankDto[]>(`${this.base}/banks`); }
 
   get(id: string) { return this.http.get<ImportBatchDetailDto>(`${this.base}/${id}`); }
 

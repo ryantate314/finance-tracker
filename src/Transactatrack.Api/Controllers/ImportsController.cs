@@ -14,13 +14,19 @@ public class ImportsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IImportService _importService;
     private readonly ICategorizationService _categorization;
+    private readonly IBankParserRegistry _bankRegistry;
 
-    public ImportsController(AppDbContext db, IImportService importService, ICategorizationService categorization)
+    public ImportsController(AppDbContext db, IImportService importService, ICategorizationService categorization, IBankParserRegistry bankRegistry)
     {
         _db = db;
         _importService = importService;
         _categorization = categorization;
+        _bankRegistry = bankRegistry;
     }
+
+    [HttpGet("banks")]
+    public ActionResult<IEnumerable<BankDto>> ListBanks() =>
+        Ok(_bankRegistry.BankCodes.Select(code => new BankDto(code)));
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ImportBatchDto>>> List(CancellationToken ct)
@@ -156,3 +162,5 @@ public record ImportBatchDetailDto(
     ImportBatchDto Batch,
     IReadOnlyList<ImportPreviewRowDto> Transactions
 );
+
+public record BankDto(string BankCode);

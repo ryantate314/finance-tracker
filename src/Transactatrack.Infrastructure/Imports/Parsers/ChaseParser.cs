@@ -6,14 +6,14 @@ using Transactatrack.Application.Imports;
 
 namespace Transactatrack.Infrastructure.Imports.Parsers;
 
-public class ChaseParser : IBankCsvParser
+public class ChaseParser : IBankStatementParser
 {
     private static readonly string[] RequiredHeaders =
         ["Transaction Date", "Post Date", "Description", "Amount"];
 
     public string BankCode => "Chase";
 
-    public IEnumerable<ParsedTransaction> Parse(Stream csv)
+    public IEnumerable<ParsedTransaction> Parse(Stream stream)
     {
         var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
@@ -23,7 +23,7 @@ public class ChaseParser : IBankCsvParser
         };
 
         // leaveOpen: caller (ImportService) owns the stream and disposes it.
-        using var reader = new StreamReader(csv, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: -1, leaveOpen: true);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: -1, leaveOpen: true);
         using var parser = new CsvReader(reader, config);
 
         if (!parser.Read() || !parser.ReadHeader())
