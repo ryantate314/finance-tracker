@@ -37,16 +37,6 @@ jobs:
             -t transactatrack-web:${{ github.sha }} \
             src/Transactatrack.Web
 
-      - name: Trigger Portainer redeploy
-        env:
-          PORTAINER_WEBHOOK: ${{ secrets.PORTAINER_WEBHOOK }}
-        run: |
-          if [ -z "$PORTAINER_WEBHOOK" ]; then
-            echo "PORTAINER_WEBHOOK secret is not set" >&2
-            exit 1
-          fi
-          curl -fsS -X POST "$PORTAINER_WEBHOOK"
-
       - name: Prune dangling images
         if: always()
         run: docker image prune -f

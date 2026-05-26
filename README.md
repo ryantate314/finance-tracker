@@ -106,20 +106,20 @@ separate workstation.
 2. **Create the app Portainer stack** from `deploy/docker-compose.yml`. Set the
    env vars from `deploy/.env.example` (`POSTGRES_CONNECTION`, `OLLAMA_BASE_URL`,
    `WEB_HOST_PORT`).
-3. **Enable the stack webhook** in Portainer (Stack → Webhooks → Create) and add
-   the URL as a GHA repo secret named `PORTAINER_WEBHOOK`.
-4. **Create the Postgres database** on the host:
+3. **Create the Postgres database** on the host:
    `sudo -u postgres createdb transactatrack`. Migrations run on API startup
    because `Database__AutoMigrate=true` is set in the compose file.
 
 ### Deploy loop
 
 Push to `main` → `.github/workflows/deploy.yml` runs on the home-server runner
-→ both images are built locally (no registry round-trip) → the workflow hits the
-Portainer webhook → the stack recreates containers using the freshly-tagged
-`:latest` images. Expected end-to-end: ~1–2 minutes.
+→ both images are built locally (no registry round-trip) and tagged `:latest`.
+Triggering the stack to recreate containers on the new images is a manual step
+in the Portainer UI (Stacks → Transactatrack → **Update the stack** → tick
+**Re-pull image and redeploy** → Update) — Portainer stack webhooks are a
+business-tier feature and aren't available on the free edition.
 
-`workflow_dispatch` is enabled if you want to redeploy without pushing.
+`workflow_dispatch` is enabled if you want to rebuild without pushing.
 
 ### Local compose run (optional)
 
