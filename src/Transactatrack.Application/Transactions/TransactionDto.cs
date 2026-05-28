@@ -19,5 +19,8 @@ public record TransactionDto(
     CategorizationSource CategorizationSource,
     bool NeedsReview,
     decimal? LlmConfidence,
-    Guid? AppliedRuleId
+    Guid? AppliedRuleId,
+    string SourceRowHash = "",
+    string? LlmModel = null,
+    DateTime? CategorizedUtc = null
 );

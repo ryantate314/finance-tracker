@@ -6,7 +6,9 @@ using Transactatrack.Api.Middleware;
 using Transactatrack.Application;
 using Transactatrack.Application.Categorization;
 using Transactatrack.Application.Imports;
+using Transactatrack.Application.Families;
 using Transactatrack.Infrastructure.Categorization;
+using Transactatrack.Infrastructure.Families;
 using Transactatrack.Infrastructure.Imports;
 using Transactatrack.Infrastructure.Imports.Parsers;
 using Transactatrack.Infrastructure.Llm;
@@ -45,6 +47,7 @@ builder.Services.AddSingleton<IBankStatementParser, MmcuParser>();
 builder.Services.AddSingleton<IBankParserRegistry, BankParserRegistry>();
 builder.Services.AddSingleton<SourceRowHasher>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IFamilyImportService, FamilyImportService>();
 
 builder.Services.AddScoped<IRuleEngine, RuleEngine>();
 builder.Services.AddScoped<IOllamaCategorizer, OllamaCategorizer>();
@@ -55,7 +58,8 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddCors(o => o.AddPolicy("AngularDev", p => p
         .WithOrigins("http://localhost:4200")
         .AllowAnyHeader()
-        .AllowAnyMethod()));
+        .AllowAnyMethod()
+        .WithExposedHeaders("Content-Disposition")));
 }
 
 var app = builder.Build();

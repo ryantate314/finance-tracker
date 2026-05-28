@@ -15,6 +15,12 @@ public class AppDbContext : DbContext
         _familyContext = familyContext;
     }
 
+    /// <summary>
+    /// When true, SaveChangesAsync does not auto-stamp CreatedUtc or FamilyId. Used by
+    /// the family-import flow so it can preserve timestamps and explicit FamilyIds.
+    /// </summary>
+    public bool SuppressAutoStamping { get; set; }
+
     public DbSet<Family> Families => Set<Family>();
     public DbSet<Owner> Owners => Set<Owner>();
     public DbSet<Account> Accounts => Set<Account>();
@@ -39,18 +45,21 @@ public class AppDbContext : DbContext
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-        foreach (var entry in ChangeTracker.Entries<FamilyScopedEntity>()
-            .Where(e => e.State == EntityState.Added))
+        if (!SuppressAutoStamping)
         {
-            entry.Entity.CreatedUtc = now;
-            if (entry.Entity.FamilyId == Guid.Empty)
-                entry.Entity.FamilyId = _familyContext.ActiveFamilyId;
-        }
-        foreach (var entry in ChangeTracker.Entries<Family>()
-            .Where(e => e.State == EntityState.Added))
-        {
-            entry.Entity.CreatedUtc = now;
+            var now = DateTime.UtcNow;
+            foreach (var entry in ChangeTracker.Entries<FamilyScopedEntity>()
+                .Where(e => e.State == EntityState.Added))
+            {
+                entry.Entity.CreatedUtc = now;
+                if (entry.Entity.FamilyId == Guid.Empty)
+                    entry.Entity.FamilyId = _familyContext.ActiveFamilyId;
+            }
+            foreach (var entry in ChangeTracker.Entries<Family>()
+                .Where(e => e.State == EntityState.Added))
+            {
+                entry.Entity.CreatedUtc = now;
+            }
         }
         return base.SaveChangesAsync(cancellationToken);
     }
