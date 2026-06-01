@@ -17,6 +17,7 @@ import { Color, LegendPosition, NgxChartsModule, ScaleType } from '@swimlane/ngx
 import { extractErrorMessage } from '../../core/api/api-error';
 import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { AccountDto, AccountsService } from '../accounts/accounts.service';
+import { OwnerDto, OwnersService } from '../owners/owners.service';
 import { AnalyticsService, CategoryBreakdownItem, MonthlyCashflowItem } from './analytics.service';
 import { DateRange, RangePreset, formatRangeLabel, presetRange, shiftRange } from './time-range';
 
@@ -82,10 +83,20 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
         </mat-form-field>
       }
 
+      <mat-form-field appearance="outline" class="owner-select">
+        <mat-label>Owner</mat-label>
+        <mat-select [formControl]="ownerIdCtrl">
+          <mat-option [value]="null">All owners</mat-option>
+          @for (o of owners(); track o.id) {
+            <mat-option [value]="o.id">{{ o.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
       <mat-form-field appearance="outline" class="accounts-select">
         <mat-label>Accounts</mat-label>
         <mat-select multiple [formControl]="accountIdsCtrl">
-          @for (a of accounts(); track a.id) {
+          @for (a of filteredAccounts(); track a.id) {
             <mat-option [value]="a.id">{{ a.name }}</mat-option>
           }
         </mat-select>
@@ -217,7 +228,8 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
     .muted { color: rgba(0,0,0,0.55); font-size: 0.95rem; }
     .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding-bottom: 16px; }
     .filters mat-form-field { min-width: 180px; }
-    .accounts-select { min-width: 220px; margin-left: auto; }
+    .owner-select { min-width: 160px; margin-left: auto; }
+    .accounts-select { min-width: 220px; }
     .summary { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 16px; }
     .summary mat-card { flex: 1 1 180px; min-width: 180px; }
     .stat-label { font-size: 0.85rem; color: rgba(0,0,0,0.55); margin-bottom: 4px; }
@@ -250,6 +262,7 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
 export class AnalyticsPage {
   private svc = inject(AnalyticsService);
   private accountsSvc = inject(AccountsService);
+  private ownersSvc = inject(OwnersService);
   private snack = inject(MatSnackBar);
   private familyCtx = inject(FamilyContextService);
   private router = inject(Router);
@@ -281,14 +294,33 @@ export class AnalyticsPage {
 
   fromCtrl = new FormControl<Date | null>(null);
   toCtrl = new FormControl<Date | null>(null);
+  ownerIdCtrl = new FormControl<string | null>(null);
   accountIdsCtrl = new FormControl<string[]>([], { nonNullable: true });
 
   preset = signal<RangePreset>('thisMonth');
   range = signal<DateRange>(presetRange('thisMonth'));
+  ownerId = signal<string | null>(null);
   accountIds = signal<string[]>([]);
   private hydrated = false;
 
+  owners = signal<OwnerDto[]>([]);
   accounts = signal<AccountDto[]>([]);
+
+  filteredAccounts = computed<AccountDto[]>(() => {
+    const oid = this.ownerId();
+    const all = this.accounts();
+    return oid ? all.filter(a => a.ownerId === oid) : all;
+  });
+
+  // The accounts actually analyzed: an explicit account selection wins; otherwise
+  // a selected owner means all of that owner's accounts; otherwise all family accounts.
+  effectiveAccountIds = computed<string[]>(() => {
+    const selected = this.accountIds();
+    if (selected.length) return selected;
+    const oid = this.ownerId();
+    if (oid) return this.accounts().filter(a => a.ownerId === oid).map(a => a.id);
+    return [];
+  });
   pie = signal<CategoryBreakdownItem[]>([]);
   cashflow = signal<MonthlyCashflowItem[]>([]);
 
@@ -350,6 +382,18 @@ export class AnalyticsPage {
       .pipe(takeUntilDestroyed())
       .subscribe(v => this.accountIds.set(v ?? []));
 
+    this.ownerIdCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe(oid => {
+      this.ownerId.set(oid);
+      // Drop any selected accounts that the newly chosen owner doesn't own.
+      if (oid) {
+        const allowed = new Set(this.accounts().filter(a => a.ownerId === oid).map(a => a.id));
+        const pruned = this.accountIds().filter(id => allowed.has(id));
+        if (pruned.length !== this.accountIds().length) {
+          this.accountIdsCtrl.setValue(pruned);
+        }
+      }
+    });
+
     this.fromCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe(d => {
       if (this.preset() !== 'custom' || !d) return;
       this.range.update(r => ({ ...r, from: d }));
@@ -366,21 +410,26 @@ export class AnalyticsPage {
         next: a => this.accounts.set(a),
         error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
       });
+      this.ownersSvc.list().subscribe({
+        next: o => this.owners.set(o),
+        error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+      });
     });
 
     effect(() => {
       const preset = this.preset();
       const range = this.range();
+      const ownerId = this.ownerId();
       const accountIds = this.accountIds();
       if (!this.hydrated) return;
-      this.syncUrl(preset, range, accountIds);
+      this.syncUrl(preset, range, ownerId, accountIds);
     });
 
     effect(() => {
       const id = this.familyCtx.activeFamilyId();
       if (!id) return;
       const range = this.range();
-      const accountIds = this.accountIds();
+      const accountIds = this.effectiveAccountIds();
       const query = { from: range.from, to: range.to, accountIds };
       this.svc.categoryBreakdown(query).subscribe({
         next: r => this.pie.set(r),
@@ -419,12 +468,13 @@ export class AnalyticsPage {
       return;
     }
     const range = this.range();
+    const accountIds = this.effectiveAccountIds();
     this.router.navigate(['/ledger'], {
       queryParams: {
         categoryIds: categoryId,
         from: dateToYmd(range.from),
         to: dateToYmd(range.to),
-        accountIds: this.accountIds().length ? this.accountIds().join(',') : null,
+        accountIds: accountIds.length ? accountIds.join(',') : null,
       },
     });
   }
@@ -456,8 +506,12 @@ export class AnalyticsPage {
     const accountIds = (params.get('accountIds') ?? '')
       .split(',').map(s => s.trim()).filter(s => s.length > 0);
 
+    const ownerId = params.get('owner') || null;
+
     this.preset.set(preset);
     this.range.set(range);
+    this.ownerId.set(ownerId);
+    this.ownerIdCtrl.setValue(ownerId, { emitEvent: false });
     this.accountIds.set(accountIds);
     this.accountIdsCtrl.setValue(accountIds, { emitEvent: false });
     if (preset === 'custom') {
@@ -467,7 +521,7 @@ export class AnalyticsPage {
     this.hydrated = true;
   }
 
-  private syncUrl(preset: RangePreset, range: DateRange, accountIds: string[]) {
+  private syncUrl(preset: RangePreset, range: DateRange, ownerId: string | null, accountIds: string[]) {
     this.router.navigate([], {
       relativeTo: this.route,
       replaceUrl: true,
@@ -475,6 +529,7 @@ export class AnalyticsPage {
         preset,
         from: dateToYmd(range.from),
         to: dateToYmd(range.to),
+        owner: ownerId,
         accountIds: accountIds.length ? accountIds.join(',') : null,
       },
       queryParamsHandling: 'merge',
