@@ -1,15 +1,9 @@
 <mat-toolbar color="primary">
   <span class="app-title">transactatrack</span>
   <nav class="nav-links">
-    <a mat-button routerLink="/status" routerLinkActive="active-link">Status</a>
-    <a mat-button routerLink="/families" routerLinkActive="active-link">Families</a>
-    <a mat-button routerLink="/owners" routerLinkActive="active-link">Owners</a>
-    <a mat-button routerLink="/accounts" routerLinkActive="active-link">Accounts</a>
-    <a mat-button routerLink="/categories" routerLinkActive="active-link">Categories</a>
-    <a mat-button routerLink="/imports" routerLinkActive="active-link">Imports</a>
-    <a mat-button routerLink="/ledger" routerLinkActive="active-link">Ledger</a>
-    <a mat-button routerLink="/rules" routerLinkActive="active-link">Rules</a>
     <a mat-button routerLink="/analytics" routerLinkActive="active-link">Analytics</a>
+    <a mat-button routerLink="/ledger" routerLinkActive="active-link">Ledger</a>
+    <a mat-button routerLink="/imports" routerLinkActive="active-link">Imports</a>
   </nav>
   <span class="spacer"></span>
   <mat-select
@@ -21,6 +15,17 @@
       <mat-option [value]="f.id">{{ f.name }}</mat-option>
     }
   </mat-select>
+  <button mat-icon-button class="config-menu-trigger" [matMenuTriggerFor]="configMenu" aria-label="Configuration menu">
+    <mat-icon>menu</mat-icon>
+  </button>
+  <mat-menu #configMenu="matMenu">
+    <a mat-menu-item routerLink="/families" routerLinkActive="active-link"><mat-icon>group</mat-icon>Families</a>
+    <a mat-menu-item routerLink="/owners" routerLinkActive="active-link"><mat-icon>person</mat-icon>Owners</a>
+    <a mat-menu-item routerLink="/accounts" routerLinkActive="active-link"><mat-icon>account_balance</mat-icon>Accounts</a>
+    <a mat-menu-item routerLink="/categories" routerLinkActive="active-link"><mat-icon>category</mat-icon>Categories</a>
+    <a mat-menu-item routerLink="/rules" routerLinkActive="active-link"><mat-icon>rule</mat-icon>Rules</a>
+    <a mat-menu-item routerLink="/status" routerLinkActive="active-link"><mat-icon>monitor_heart</mat-icon>Status</a>
+  </mat-menu>
 </mat-toolbar>
 <main class="app-main">
   <router-outlet />
