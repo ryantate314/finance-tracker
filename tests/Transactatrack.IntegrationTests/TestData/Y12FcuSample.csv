@@ -1,0 +1,8 @@
+Account Name : SAMPLE CARD
+Account Number : 0000000000000
+Date Range : 05/01/2026-05/31/2026
+Transaction Number,Date,Description,Memo,Amount Debit,Amount Credit,Balance,Check Number,Fees,Principal,Interest
+"20260531000000[-5:EST]*-40.30*42**Purchase CREDIT CARD",05/31/2026,"Purchase CREDIT CARD ","SAMPLE GROCERY #000 ANYTOWN ST Date 05/29/26  5411-Misc. Retail/ Card  #0000",-40.30,,1062.65,,0.00,40.30,0.00
+"20260519000000[-5:EST]*921.53*504**Payment Home Banking Transfer",05/19/2026,"Payment Home Banking Transfer ","From Share 00  Internet Access 05/19/2026 12:12 000000",,921.53,0.00,,0.00,921.53,0.00
+"20260514000000[-5:EST]*101.18*542**Credit Voucher Credit Voucher",05/14/2026,"Credit Voucher Credit Voucher ","SAMPLE MERCHANT 000-0000000 ST Date 05/12/26  5992-Misc. Retail/ Card  #0000",,101.18,552.62,,0.00,101.18,0.00
+"20260512000000[-5:EST]*0.00*42**COMMENT",05/12/2026,"COMMENT ","Sample pending credit/return for $101.18 on card 0000",,,,,0.00,,
