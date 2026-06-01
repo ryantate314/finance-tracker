@@ -34,6 +34,9 @@
     <None Include="..\Transactatrack.IntegrationTests\TestData\Y12FcuSample.csv" Link="TestData\Y12FcuSample.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="..\Transactatrack.IntegrationTests\TestData\FirstHorizonSample.csv" Link="TestData\FirstHorizonSample.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

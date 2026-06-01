@@ -45,6 +45,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddSingleton<IBankStatementParser, ChaseParser>();
 builder.Services.AddSingleton<IBankStatementParser, MmcuParser>();
 builder.Services.AddSingleton<IBankStatementParser, Y12FcuParser>();
+builder.Services.AddSingleton<IBankStatementParser, FirstHorizonParser>();
 builder.Services.AddSingleton<IBankParserRegistry, BankParserRegistry>();
 builder.Services.AddSingleton<SourceRowHasher>();
 builder.Services.AddScoped<IImportService, ImportService>();
