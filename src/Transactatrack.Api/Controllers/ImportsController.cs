@@ -57,7 +57,7 @@ public class ImportsController : ControllerBase
         var transactions = await _db.Transactions
             .Where(t => t.ImportBatchId == id)
             .OrderByDescending(t => t.Date)
-            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.SubCategoryId, t.CategorizationSource, t.NeedsReview, t.Id, t.AppliedRuleId))
+            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.SubCategoryId, t.CategorizationSource, t.NeedsReview, t.Id, t.AppliedRuleId, t.Note))
             .ToListAsync(ct);
 
         var totalCount = transactions.Count;

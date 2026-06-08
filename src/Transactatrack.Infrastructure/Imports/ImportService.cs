@@ -142,7 +142,7 @@ public class ImportService : IImportService
         // Dropped rows are flagged IsDuplicate=true; new rows IsDuplicate=false.
         var sample = newRows
             .Take(SamplePreviewSize)
-            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.SubCategoryId, t.CategorizationSource, t.NeedsReview, t.Id, t.AppliedRuleId))
+            .Select(t => new ImportPreviewRowDto(t.Date, t.PostedDate, t.Amount, t.Description, false, t.CategoryId, t.SubCategoryId, t.CategorizationSource, t.NeedsReview, t.Id, t.AppliedRuleId, t.Note))
             .Concat(duplicateRows
                 .Take(SamplePreviewSize)
                 .Select(r => new ImportPreviewRowDto(r.Date, r.PostedDate, r.Amount, r.Description, true)))

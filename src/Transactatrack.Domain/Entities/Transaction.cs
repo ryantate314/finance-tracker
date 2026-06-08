@@ -11,6 +11,7 @@ public class Transaction : FamilyScopedEntity
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;
     public string? Merchant { get; set; }
+    public string? Note { get; set; }
     public Guid? CategoryId { get; set; }
     public Guid? SubCategoryId { get; set; }
     public bool IsTransfer { get; set; }

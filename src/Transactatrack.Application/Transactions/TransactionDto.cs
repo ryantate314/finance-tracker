@@ -22,5 +22,6 @@ public record TransactionDto(
     Guid? AppliedRuleId,
     string SourceRowHash = "",
     string? LlmModel = null,
-    DateTime? CategorizedUtc = null
+    DateTime? CategorizedUtc = null,
+    string? Note = null
 );

@@ -104,7 +104,11 @@ public class TransactionsController : ControllerBase
                 t.CategorizationSource,
                 t.NeedsReview,
                 t.LlmConfidence,
-                t.AppliedRuleId))
+                t.AppliedRuleId,
+                t.SourceRowHash,
+                t.LlmModel,
+                t.CategorizedUtc,
+                t.Note))
             .ToListAsync(ct);
 
         return Ok(new PagedResult<TransactionDto>(items, totalCount, page, pageSize));
@@ -120,29 +124,38 @@ public class TransactionsController : ControllerBase
         var tx = await _db.Transactions.FirstOrDefaultAsync(t => t.Id == id, ct);
         if (tx is null) return NotFound();
 
+        // The note can be edited on its own; always apply it.
+        tx.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+
+        // Only re-stamp categorization (and clear rule/review/AI markers) when the category
+        // actually changes — a note-only edit must not blow away an existing rule attribution.
         var subCategoryId = request.CategoryId is null ? null : request.SubCategoryId;
-        if (subCategoryId is not null)
+        bool categoryChanged = tx.CategoryId != request.CategoryId || tx.SubCategoryId != subCategoryId;
+        if (categoryChanged)
         {
-            var belongs = await _db.SubCategories
-                .AnyAsync(s => s.Id == subCategoryId.Value && s.CategoryId == request.CategoryId!.Value, ct);
-            if (!belongs)
-                return BadRequest(new { title = "SubCategoryId must belong to CategoryId.", status = 400 });
+            if (subCategoryId is not null)
+            {
+                var belongs = await _db.SubCategories
+                    .AnyAsync(s => s.Id == subCategoryId.Value && s.CategoryId == request.CategoryId!.Value, ct);
+                if (!belongs)
+                    return BadRequest(new { title = "SubCategoryId must belong to CategoryId.", status = 400 });
+            }
+
+            var targetKind = request.CategoryId is null
+                ? CategoryKind.User
+                : await _db.Categories
+                    .Where(c => c.Id == request.CategoryId.Value)
+                    .Select(c => (CategoryKind?)c.Kind)
+                    .FirstOrDefaultAsync(ct) ?? CategoryKind.User;
+
+            tx.CategoryId = request.CategoryId;
+            tx.SubCategoryId = subCategoryId;
+            tx.IsTransfer = targetKind == CategoryKind.Transfer;
+            tx.CategorizationSource = CategorizationSource.Manual;
+            tx.NeedsReview = false;
+            tx.AppliedRuleId = null;
+            tx.CategorizedUtc = DateTime.UtcNow;
         }
-
-        var targetKind = request.CategoryId is null
-            ? CategoryKind.User
-            : await _db.Categories
-                .Where(c => c.Id == request.CategoryId.Value)
-                .Select(c => (CategoryKind?)c.Kind)
-                .FirstOrDefaultAsync(ct) ?? CategoryKind.User;
-
-        tx.CategoryId = request.CategoryId;
-        tx.SubCategoryId = subCategoryId;
-        tx.IsTransfer = targetKind == CategoryKind.Transfer;
-        tx.CategorizationSource = CategorizationSource.Manual;
-        tx.NeedsReview = false;
-        tx.AppliedRuleId = null;
-        tx.CategorizedUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
 
@@ -150,7 +163,8 @@ public class TransactionsController : ControllerBase
             tx.Id, tx.AccountId, tx.Date, tx.PostedDate, tx.Amount,
             tx.Description, tx.Merchant, tx.CategoryId, tx.SubCategoryId, tx.IsTransfer,
             tx.TransferGroupId, tx.ImportBatchId, tx.CreatedUtc,
-            tx.CategorizationSource, tx.NeedsReview, tx.LlmConfidence, tx.AppliedRuleId));
+            tx.CategorizationSource, tx.NeedsReview, tx.LlmConfidence, tx.AppliedRuleId,
+            Note: tx.Note));
     }
 
     private static List<Guid> ParseGuidList(string? csv)

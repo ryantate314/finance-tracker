@@ -12,6 +12,7 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.Property(t => t.Id).ValueGeneratedOnAdd();
         builder.Property(t => t.Description).IsRequired().HasMaxLength(500);
         builder.Property(t => t.Merchant).HasMaxLength(200);
+        builder.Property(t => t.Note).HasMaxLength(1000);
         builder.Property(t => t.Amount).HasPrecision(18, 4);
         builder.Property(t => t.SourceRowHash).IsRequired().HasMaxLength(80);
 

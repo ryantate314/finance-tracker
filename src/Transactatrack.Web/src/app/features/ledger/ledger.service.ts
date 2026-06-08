@@ -12,6 +12,7 @@ export interface TransactionDto {
   amount: number;
   description: string;
   merchant: string | null;
+  note: string | null;
   categoryId: string | null;
   subCategoryId: string | null;
   isTransfer: boolean;

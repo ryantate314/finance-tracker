@@ -99,6 +99,72 @@ public class LedgerTests : IClassFixture<IntegrationTestFactory>
     }
 
     [Fact]
+    public async Task Patch_SetsNote_AndItRoundTripsInList()
+    {
+        var (client, _) = await SetupCommittedAsync();
+        var tx = await FirstTransactionAsync(client);
+
+        var patch = await client.PatchAsJsonAsync($"/api/transactions/{tx.Id}",
+            new UpdateTransactionCategoryRequest(tx.CategoryId, tx.SubCategoryId, "  funeral flowers for a friend  "));
+        patch.EnsureSuccessStatusCode();
+        var updated = (await patch.Content.ReadFromJsonAsync<TransactionDto>(IntegrationTestFactory.JsonOpts))!;
+        Assert.Equal("funeral flowers for a friend", updated.Note); // trimmed
+
+        var reread = await FindTransactionAsync(client, tx.Id);
+        Assert.Equal("funeral flowers for a friend", reread.Note);
+    }
+
+    [Fact]
+    public async Task Patch_CategoryEditEchoingNote_PreservesNote()
+    {
+        var (client, _) = await SetupCommittedAsync();
+        var tx = await FirstTransactionAsync(client);
+
+        // Set a note first.
+        await client.PatchAsJsonAsync($"/api/transactions/{tx.Id}",
+            new UpdateTransactionCategoryRequest(tx.CategoryId, tx.SubCategoryId, "keep me"));
+
+        // Inline category edit must echo the existing note so it isn't wiped.
+        var patch = await client.PatchAsJsonAsync($"/api/transactions/{tx.Id}",
+            new UpdateTransactionCategoryRequest(null, null, "keep me"));
+        patch.EnsureSuccessStatusCode();
+        var updated = (await patch.Content.ReadFromJsonAsync<TransactionDto>(IntegrationTestFactory.JsonOpts))!;
+        Assert.Equal("keep me", updated.Note);
+    }
+
+    [Fact]
+    public async Task Patch_BlankNote_ClearsNoteToNull()
+    {
+        var (client, _) = await SetupCommittedAsync();
+        var tx = await FirstTransactionAsync(client);
+
+        await client.PatchAsJsonAsync($"/api/transactions/{tx.Id}",
+            new UpdateTransactionCategoryRequest(tx.CategoryId, tx.SubCategoryId, "temporary"));
+
+        var patch = await client.PatchAsJsonAsync($"/api/transactions/{tx.Id}",
+            new UpdateTransactionCategoryRequest(tx.CategoryId, tx.SubCategoryId, "   "));
+        patch.EnsureSuccessStatusCode();
+        var updated = (await patch.Content.ReadFromJsonAsync<TransactionDto>(IntegrationTestFactory.JsonOpts))!;
+        Assert.Null(updated.Note);
+    }
+
+    private static async Task<TransactionDto> FirstTransactionAsync(HttpClient client)
+    {
+        var resp = await client.GetAsync("/api/transactions?pageSize=1");
+        resp.EnsureSuccessStatusCode();
+        var page = (await resp.Content.ReadFromJsonAsync<PagedResult<TransactionDto>>(IntegrationTestFactory.JsonOpts))!;
+        return page.Items[0];
+    }
+
+    private static async Task<TransactionDto> FindTransactionAsync(HttpClient client, Guid id)
+    {
+        var resp = await client.GetAsync("/api/transactions?pageSize=200");
+        resp.EnsureSuccessStatusCode();
+        var page = (await resp.Content.ReadFromJsonAsync<PagedResult<TransactionDto>>(IntegrationTestFactory.JsonOpts))!;
+        return page.Items.Single(t => t.Id == id);
+    }
+
+    [Fact]
     public async Task Ledger_FilterByDateRange()
     {
         var (client, _) = await SetupCommittedAsync();

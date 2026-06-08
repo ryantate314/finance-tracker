@@ -15,6 +15,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { Subject, merge } from 'rxjs';
 import { debounceTime, switchMap } from 'rxjs/operators';
@@ -25,6 +26,7 @@ import { CategoryPicker, CategorySelection } from '../categories/category-picker
 import { CategoriesService, CategoryDto } from '../categories/categories.service';
 import { CategoryRulesService, SaveCategoryRuleRequest } from '../rules/category-rules.service';
 import { RuleEditDialog } from '../rules/rule-edit-dialog';
+import { TransactionDetailDialog, TransactionDetailResult } from '../transactions/transaction-detail-dialog';
 import { TransactionsService } from '../transactions/transactions.service';
 import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledger.service';
 
@@ -44,6 +46,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     MatIconModule,
     MatMenuModule,
     MatCheckboxModule,
+    MatTooltipModule,
     CategoryPicker,
     DatePipe,
     DecimalPipe,
@@ -104,7 +107,13 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
       </ng-container>
       <ng-container matColumnDef="description">
         <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
-        <mat-cell *matCellDef="let t">{{ t.description }}</mat-cell>
+        <mat-cell *matCellDef="let t">
+          <span class="desc-text">{{ t.description }}</span>
+          @if (t.note) {
+            <mat-icon class="note-badge" [matTooltip]="t.note"
+              matTooltipClass="note-tooltip" aria-label="Note">sticky_note_2</mat-icon>
+          }
+        </mat-cell>
       </ng-container>
       <ng-container matColumnDef="account">
         <mat-header-cell *matHeaderCellDef>Account</mat-header-cell>
@@ -152,6 +161,10 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
 
     <mat-menu #rowMenu="matMenu">
       <ng-template matMenuContent let-row="row">
+        <button mat-menu-item (click)="openDetail(row)">
+          <mat-icon>notes</mat-icon>
+          <span>View / edit details</span>
+        </button>
         <button mat-menu-item (click)="createRuleFrom(row)">
           <mat-icon>rule</mat-icon>
           <span>Create rule from this transaction</span>
@@ -176,6 +189,9 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     .right { justify-content: flex-end; text-align: right; }
     .debit { color: #b00020; }
     .cat-cell { display: flex; align-items: center; gap: 6px; }
+    .mat-column-description .desc-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .note-badge { color: #f9a825; font-size: 18px; width: 18px; height: 18px; margin-left: 6px; cursor: default; flex: 0 0 auto; }
+    ::ng-deep .note-tooltip { white-space: pre-wrap; max-width: 320px; }
     .mat-column-date { flex: 0 0 100px; }
     .mat-column-description { flex: 3 1 240px; }
     .mat-column-account { flex: 0 0 140px; }
@@ -282,12 +298,36 @@ export class LedgerPage {
   accountName(id: string): string { return this.accountsById().get(id) ?? id; }
 
   onCategorySelection(tx: TransactionDto, selection: CategorySelection) {
-    this.txSvc.updateCategory(tx.id, selection.categoryId, selection.subCategoryId).subscribe({
-      next: updated => this.result.update(r => r
-        ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
-        : r),
+    // Echo the current note so a category-only edit doesn't wipe it server-side.
+    this.txSvc.updateCategory(tx.id, selection.categoryId, selection.subCategoryId, tx.note).subscribe({
+      next: updated => this.patchRow(updated),
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
+  }
+
+  openDetail(tx: TransactionDto) {
+    this.dialog.open(TransactionDetailDialog, {
+      data: { tx, categories: this.categories(), accountName: this.accountName(tx.accountId) },
+      width: '480px',
+      // Focus the dialog itself, not the first input — otherwise the category
+      // autocomplete grabs focus and pops its dropdown open, which is jarring.
+      autoFocus: 'dialog',
+    }).afterClosed().subscribe((res: TransactionDetailResult | undefined) => {
+      if (!res) return;
+      this.txSvc.updateCategory(tx.id, res.categoryId, res.subCategoryId, res.note).subscribe({
+        next: updated => {
+          this.patchRow(updated);
+          this.snack.open('Transaction updated', 'Close', { duration: 3000 });
+        },
+        error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+      });
+    });
+  }
+
+  private patchRow(updated: TransactionDto) {
+    this.result.update(r => r
+      ? { ...r, items: r.items.map(t => t.id === updated.id ? updated : t) }
+      : r);
   }
 
   openAppliedRule(ruleId: string) {

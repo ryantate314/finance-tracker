@@ -146,7 +146,7 @@ public class FamiliesController : ControllerBase
                 t.Description, t.Merchant, t.CategoryId, t.SubCategoryId, t.IsTransfer,
                 t.TransferGroupId, t.ImportBatchId, t.CreatedUtc,
                 t.CategorizationSource, t.NeedsReview, t.LlmConfidence, t.AppliedRuleId,
-                t.SourceRowHash, t.LlmModel, t.CategorizedUtc))
+                t.SourceRowHash, t.LlmModel, t.CategorizedUtc, t.Note))
             .ToListAsync(ct);
 
         var dto = new FamilyExportDto(

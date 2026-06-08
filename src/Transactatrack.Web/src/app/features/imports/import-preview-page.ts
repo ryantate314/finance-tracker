@@ -9,6 +9,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs/operators';
 import { extractErrorMessage } from '../../core/api/api-error';
@@ -16,6 +17,7 @@ import { CategoryPicker, CategorySelection } from '../categories/category-picker
 import { CategoriesService, CategoryDto } from '../categories/categories.service';
 import { CategoryRulesService, SaveCategoryRuleRequest } from '../rules/category-rules.service';
 import { RuleEditDialog } from '../rules/rule-edit-dialog';
+import { NoteEditDialog } from '../transactions/note-edit-dialog';
 import { TransactionsService } from '../transactions/transactions.service';
 import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRowDto, ImportsService } from './imports.service';
 
@@ -23,7 +25,7 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
   selector: 'app-import-preview-page',
   standalone: true,
   imports: [
-    MatTableModule, MatButtonModule, MatIconModule, MatMenuModule,
+    MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule,
     MatChipsModule, MatProgressBarModule, CategoryPicker, DatePipe, DecimalPipe,
   ],
   template: `
@@ -78,7 +80,13 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
           </ng-container>
           <ng-container matColumnDef="description">
             <mat-header-cell *matHeaderCellDef>Description</mat-header-cell>
-            <mat-cell *matCellDef="let t">{{ t.description }}</mat-cell>
+            <mat-cell *matCellDef="let t">
+              <span class="desc-text">{{ t.description }}</span>
+              @if (t.note) {
+                <mat-icon class="note-badge" [matTooltip]="t.note"
+                  matTooltipClass="note-tooltip" aria-label="Note">sticky_note_2</mat-icon>
+              }
+            </mat-cell>
           </ng-container>
           <ng-container matColumnDef="amount">
             <mat-header-cell *matHeaderCellDef class="right">Amount</mat-header-cell>
@@ -123,6 +131,10 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
 
         <mat-menu #rowMenu="matMenu">
           <ng-template matMenuContent let-row="row">
+            <button mat-menu-item (click)="editNote(row)">
+              <mat-icon>sticky_note_2</mat-icon>
+              <span>{{ row.note ? 'Edit note' : 'Add note' }}</span>
+            </button>
             <button mat-menu-item (click)="createRuleFrom(row)">
               <mat-icon>rule</mat-icon>
               <span>Create rule from this transaction</span>
@@ -179,6 +191,8 @@ import { ImportBatchDetailDto, ImportBatchDto, ImportPreviewDto, ImportPreviewRo
     .muted { color: rgba(0,0,0,0.55); margin: 0 0 8px; }
     .error-msg { color: #b00020; }
     .cat-cell { display: flex; align-items: center; gap: 6px; }
+    .note-badge { color: #f9a825; font-size: 18px; width: 18px; height: 18px; margin-left: 6px; cursor: default; flex: 0 0 auto; }
+    ::ng-deep .note-tooltip { white-space: pre-wrap; max-width: 320px; }
     .mat-column-date { flex: 0 0 100px; }
     .mat-column-description { flex: 3 1 240px; }
     .mat-column-amount { flex: 0 0 110px; }
@@ -301,16 +315,33 @@ export class ImportPreviewPage {
 
   onCategorySelection(row: ImportPreviewRowDto, selection: CategorySelection) {
     if (!row.transactionId) return;
-    this.txSvc.updateCategory(row.transactionId, selection.categoryId, selection.subCategoryId).subscribe({
+    // Echo the current note so a category-only edit doesn't wipe it server-side.
+    this.txSvc.updateCategory(row.transactionId, selection.categoryId, selection.subCategoryId, row.note).subscribe({
       next: updated => this.applyUpdate(row, updated),
       error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
     });
   }
 
-  private applyUpdate(row: ImportPreviewRowDto, updated: { categoryId: string | null; subCategoryId: string | null; categorizationSource: ImportPreviewRowDto['categorizationSource']; needsReview: boolean }) {
+  editNote(row: ImportPreviewRowDto) {
+    if (!row.transactionId) return;
+    const txId = row.transactionId;
+    this.dialog.open(NoteEditDialog, {
+      data: { note: row.note, description: row.description },
+      width: '420px',
+    }).afterClosed().subscribe((note: string | null | undefined) => {
+      if (note === undefined) return; // cancelled
+      // Preserve the existing category; only the note changes.
+      this.txSvc.updateCategory(txId, row.categoryId, row.subCategoryId, note).subscribe({
+        next: updated => this.applyUpdate(row, updated),
+        error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+      });
+    });
+  }
+
+  private applyUpdate(row: ImportPreviewRowDto, updated: { categoryId: string | null; subCategoryId: string | null; categorizationSource: ImportPreviewRowDto['categorizationSource']; needsReview: boolean; note: string | null }) {
     this.newRowsLocal.update(rows =>
       rows.map(r => r === row
-        ? { ...r, categoryId: updated.categoryId, subCategoryId: updated.subCategoryId, categorizationSource: updated.categorizationSource, needsReview: updated.needsReview }
+        ? { ...r, categoryId: updated.categoryId, subCategoryId: updated.subCategoryId, categorizationSource: updated.categorizationSource, needsReview: updated.needsReview, note: updated.note }
         : r)
     );
   }

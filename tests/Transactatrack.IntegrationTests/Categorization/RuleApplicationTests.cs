@@ -132,6 +132,38 @@ public class RuleApplicationTests : IClassFixture<IntegrationTestFactory>
     }
 
     [Fact]
+    public async Task Patch_NoteOnly_PreservesRuleAttribution()
+    {
+        var (client, accountId, categoryId) = await SetupAsync();
+        await SeedRule(client, categoryId, "FIXTURE PAYMENT");
+
+        await using var stream = File.OpenRead(SamplePath);
+        using var form = BuildUpload(accountId, stream);
+        var uploadResp = await client.PostAsync("/api/imports", form);
+        uploadResp.EnsureSuccessStatusCode();
+        var preview = (await uploadResp.Content.ReadFromJsonAsync<ImportPreviewDto>(IntegrationTestFactory.JsonOpts))!;
+        (await client.PostAsync($"/api/imports/{preview.BatchId}/commit", null)).EnsureSuccessStatusCode();
+
+        var ledger = (await client.GetFromJsonAsync<PagedResult<TransactionDto>>(
+            "/api/transactions?pageSize=200", IntegrationTestFactory.JsonOpts))!;
+        var ruleTx = ledger.Items.First(t => t.CategorizationSource == CategorizationSource.Rule);
+        Assert.NotNull(ruleTx.AppliedRuleId);
+
+        // Note-only edit: re-send the existing category so nothing categorization-related changes.
+        var patchResp = await client.PatchAsJsonAsync(
+            $"/api/transactions/{ruleTx.Id}",
+            new UpdateTransactionCategoryRequest(ruleTx.CategoryId, ruleTx.SubCategoryId, "context note"));
+        patchResp.EnsureSuccessStatusCode();
+        var updated = (await patchResp.Content.ReadFromJsonAsync<TransactionDto>(IntegrationTestFactory.JsonOpts))!;
+
+        Assert.Equal("context note", updated.Note);
+        // The rule attribution must survive a note-only edit.
+        Assert.Equal(CategorizationSource.Rule, updated.CategorizationSource);
+        Assert.Equal(ruleTx.AppliedRuleId, updated.AppliedRuleId);
+        Assert.Equal(ruleTx.CategoryId, updated.CategoryId);
+    }
+
+    [Fact]
     public async Task RerunRules_OverwritesRuleSource_PreservesManual()
     {
         var (client, accountId, categoryId) = await SetupAsync();

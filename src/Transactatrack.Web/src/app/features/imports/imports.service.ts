@@ -31,6 +31,7 @@ export interface ImportPreviewRowDto {
   needsReview: boolean;
   transactionId: string | null;
   appliedRuleId: string | null;
+  note: string | null;
 }
 
 export interface ImportPreviewDto {

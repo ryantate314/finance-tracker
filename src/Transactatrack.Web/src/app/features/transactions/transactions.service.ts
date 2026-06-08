@@ -8,7 +8,14 @@ export class TransactionsService {
   private http = inject(HttpClient);
   private base = `${environment.apiBaseUrl}/transactions`;
 
-  updateCategory(id: string, categoryId: string | null, subCategoryId: string | null = null) {
-    return this.http.patch<TransactionDto>(`${this.base}/${id}`, { categoryId, subCategoryId });
+  // Note travels on the same PATCH as the category. Callers doing a category-only edit must
+  // pass the transaction's current note so it isn't wiped server-side.
+  updateCategory(
+    id: string,
+    categoryId: string | null,
+    subCategoryId: string | null = null,
+    note: string | null = null,
+  ) {
+    return this.http.patch<TransactionDto>(`${this.base}/${id}`, { categoryId, subCategoryId, note });
   }
 }
