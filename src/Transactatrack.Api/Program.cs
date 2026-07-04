@@ -49,6 +49,8 @@ builder.Services.AddSingleton<IBankStatementParser, MmcuParser>();
 builder.Services.AddSingleton<IBankStatementParser, Y12FcuParser>();
 builder.Services.AddSingleton<IBankStatementParser, FirstHorizonParser>();
 builder.Services.AddSingleton<IBankStatementParser, DiscoverParser>();
+builder.Services.AddSingleton<IBankStatementParser, TnBankParser>();
+builder.Services.AddSingleton<IBankStatementParser, FidelityParser>();
 builder.Services.AddSingleton<IBankParserRegistry, BankParserRegistry>();
 builder.Services.AddSingleton<SourceRowHasher>();
 builder.Services.AddScoped<IImportService, ImportService>();

@@ -161,6 +161,14 @@ public class TransactionsController : ControllerBase
             tx.CategorizedUtc = DateTime.UtcNow;
         }
 
+        if (request.AccountId.HasValue)
+        {
+            bool accountExists = await _db.Accounts.AnyAsync(a => a.Id == request.AccountId.Value, ct);
+            if (!accountExists)
+                return BadRequest(new { title = "AccountId not found.", status = 400 });
+            tx.AccountId = request.AccountId.Value;
+        }
+
         await _db.SaveChangesAsync(ct);
 
         return Ok(new TransactionDto(

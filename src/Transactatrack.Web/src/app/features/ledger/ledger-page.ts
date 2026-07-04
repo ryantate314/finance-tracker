@@ -22,6 +22,7 @@ import { debounceTime, switchMap } from 'rxjs/operators';
 import { extractErrorMessage } from '../../core/api/api-error';
 import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { AccountDto, AccountsService } from '../accounts/accounts.service';
+import { AccountPicker } from '../accounts/account-picker.component';
 import { CategoryPicker, CategorySelection } from '../categories/category-picker.component';
 import { CategoriesService, CategoryDto } from '../categories/categories.service';
 import { CategoryRulesService, SaveCategoryRuleRequest } from '../rules/category-rules.service';
@@ -49,6 +50,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     MatMenuModule,
     MatCheckboxModule,
     MatTooltipModule,
+    AccountPicker,
     CategoryPicker,
     DatePipe,
     DecimalPipe,
@@ -124,7 +126,13 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
       </ng-container>
       <ng-container matColumnDef="account">
         <mat-header-cell *matHeaderCellDef>Account</mat-header-cell>
-        <mat-cell *matCellDef="let t">{{ accountName(t.accountId) }}</mat-cell>
+        <mat-cell *matCellDef="let t">
+          <app-account-picker
+            [accounts]="accounts()"
+            [accountId]="t.accountId"
+            (selectionChange)="onAccountSelection(t, $event)">
+          </app-account-picker>
+        </mat-cell>
       </ng-container>
       <ng-container matColumnDef="category">
         <mat-header-cell *matHeaderCellDef>Category</mat-header-cell>
@@ -219,7 +227,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     ::ng-deep .note-tooltip { white-space: pre-wrap; max-width: 320px; }
     .mat-column-date { flex: 0 0 100px; }
     .mat-column-description { flex: 3 1 240px; }
-    .mat-column-account { flex: 0 0 140px; }
+    .mat-column-account { flex: 0 0 160px; overflow: visible; }
     .mat-column-category { overflow: visible; flex: 1 1 280px; }
     .mat-column-amount { flex: 0 0 110px; }
     .source-chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; border: 0; }
@@ -332,6 +340,14 @@ export class LedgerPage {
   }
 
   accountName(id: string): string { return this.accountsById().get(id) ?? id; }
+
+  onAccountSelection(tx: TransactionDto, accountId: string) {
+    // Echo category and note so they aren't wiped by the account-only edit.
+    this.txSvc.updateCategory(tx.id, tx.categoryId, tx.subCategoryId, tx.note, accountId).subscribe({
+      next: updated => this.patchRow(updated),
+      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+    });
+  }
 
   onCategorySelection(tx: TransactionDto, selection: CategorySelection) {
     // Echo the current note so a category-only edit doesn't wipe it server-side.

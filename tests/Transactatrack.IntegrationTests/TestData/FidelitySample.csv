@@ -1,0 +1,10 @@
+Run Date,Action,Symbol,Description,Type,Price ($),Quantity,Commission ($),Fees ($),Accrued Interest ($),Amount ($),Cash Balance ($),Settlement Date
+
+06-30-2026,REINVESTMENT FIDELITY GOVERNMENT CASH RESERVES (FDRXX) (Cash),FDRXX,FIDELITY GOVERNMENT CASH RESERVES,Cash,1,1.00,"","","",-1.00,501.00,""
+06-30-2026,DIVIDEND RECEIVED FIDELITY GOVERNMENT CASH RESERVES (FDRXX) (Cash),FDRXX,FIDELITY GOVERNMENT CASH RESERVES,Cash,"",0,"","","",1.00,501.00,""
+06-15-2026,DEBIT CARD PURCHASE SAMPLE MERCHANT ANYTOWN ST 061426 AUTHID:000001 (Cash),,No Description,Cash,"",0,"","","",-42.50,500.00,""
+05-29-2026,PARTIC CONTR CURRENT CHECK RECEIVED PARTIC CONTRIBUTION MOBILE DEPOSIT (Cash),,No Description,Cash,"",0,"","","",500.00,542.50,""
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution."
+
+Date downloaded 07/04/2026 02:44 pm
