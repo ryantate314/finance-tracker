@@ -39,6 +39,7 @@ export interface LedgerQuery {
   to?: Date | null;
   q?: string;
   needsReview?: boolean;
+  isTransfer?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -56,6 +57,7 @@ export class LedgerService {
     if (q.to) params = params.set('to', this.dateToYmd(q.to));
     if (q.q?.trim()) params = params.set('q', q.q.trim());
     if (q.needsReview !== undefined) params = params.set('needsReview', String(q.needsReview));
+    if (q.isTransfer !== undefined) params = params.set('isTransfer', String(q.isTransfer));
     if (q.page) params = params.set('page', q.page);
     if (q.pageSize) params = params.set('pageSize', q.pageSize);
     return this.http.get<PagedResult<TransactionDto>>(this.base, { params });

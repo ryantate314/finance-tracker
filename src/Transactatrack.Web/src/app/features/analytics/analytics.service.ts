@@ -7,6 +7,8 @@ export interface CategoryBreakdownItem {
   categoryName: string;
   amount: number;
   transactionCount: number;
+  /** A synthetic "Transfers out" row rather than a real spending category. */
+  isTransfersBucket?: boolean;
 }
 
 export interface MonthlyCashflowItem {
@@ -15,6 +17,25 @@ export interface MonthlyCashflowItem {
   income: number;
   expense: number;
   net: number;
+  transfersIn: number;
+  transfersOut: number;
+}
+
+export interface SankeyNode {
+  id: string;
+  label: string;
+  kind: 'income' | 'account' | 'category' | 'sink' | 'source';
+}
+
+export interface SankeyLink {
+  source: string;
+  target: string;
+  value: number;
+}
+
+export interface SankeyData {
+  nodes: SankeyNode[];
+  links: SankeyLink[];
 }
 
 export interface AnalyticsQuery {
@@ -36,6 +57,12 @@ export class AnalyticsService {
 
   monthlyCashflow(q: AnalyticsQuery) {
     return this.http.get<MonthlyCashflowItem[]>(`${this.base}/monthly-cashflow`, {
+      params: this.buildParams(q),
+    });
+  }
+
+  sankey(q: AnalyticsQuery) {
+    return this.http.get<SankeyData>(`${this.base}/sankey`, {
       params: this.buildParams(q),
     });
   }

@@ -4,5 +4,6 @@ public record CategoryBreakdownItemDto(
     Guid? CategoryId,
     string CategoryName,
     decimal Amount,
-    int TransactionCount
+    int TransactionCount,
+    bool IsTransfersBucket = false
 );

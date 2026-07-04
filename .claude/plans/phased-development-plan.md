@@ -112,22 +112,24 @@ transactatrack/
 
 ---
 
-## Phase 4 — Transfer Auto-Match
+## Phase 4 — Transfer Auto-Match + Money-Flow Sankey ✅ Complete
 
-**Goal**: Credit-card payments and inter-account moves don't inflate spending totals.
+**Completed (2026-06-09):** `TransferMatcher` (`Infrastructure/Transfers/`) + `ITransferMatcher`/`TransferMatchOptions`/`TransferMatchResult`/`TransferException` (`Application/Transfers/`). Pairs equal-and-opposite, cross-account, unpaired candidates (uncategorized or Transfer-kind) within ±`WindowDays` (config `"Transfers": { "WindowDays": 3 }`); deterministic greedy match driven from the outflow leg; assigns a shared `TransferGroupId`, `IsTransfer = true`, and the system Transfer category (without clobbering a manual non-transfer categorization); idempotent (only touches `TransferGroupId == null`). Runs post-commit in `ImportService.CommitAsync`. `TransfersController`: `POST /api/transfers/rescan|link|{groupId}/unlink`. Migration `AddTransferGroupIdIndex` (index on `TransferGroupId`; no other schema change — the columns already existed).
+
+**Boundary-aware analytics** (`AnalyticsController.cs`): instead of globally excluding `IsTransfer`, a transfer is hidden only when both legs are inside the scoped account set; a transfer crossing the boundary counts as income (inflow) or "transfers out" (outflow). `monthly-cashflow` gained `TransfersIn`/`TransfersOut`; `category-breakdown` gained a synthetic `IsTransfersBucket` row and never shows the Transfer category. Scope = `accountIds` or all family accounts (so the unfiltered view still nets every transfer to zero — backward compatible).
+
+**Sankey** `GET /api/analytics/sankey` → `SankeyDto` (nodes/links): per-owner income → account → (account→account transfers, netted) → expense category. Frontend: `echarts` (lazy-imported) in a standalone `sankey-chart.component.ts`, rendered in a "Money flow" card on the analytics page; new "Transfers (in/out)" stat card + stacked bar series. Ledger: Transfer chip + "Link as transfer…"/"Unlink transfer" row actions + "Rescan transfers" button (`transfers.service.ts`, `link-transfer-dialog.ts`).
+
+**Tests:** `Transfers/TransferMatcherTests` (auto-match in/out of window, same-account rejected, idempotent rescan, manual link/unlink, Discover payment sign), `Analytics/BoundaryTransferAnalyticsTests` (internal nets to zero; one-account scope yields TransfersIn/Out; synthetic bucket; Net reconciles), `Analytics/SankeyTests` (three layers, no zero/negative links, every endpoint has a node). 74 unit + 59 integration green.
+
+**Goal**: Credit-card payments and inter-account moves don't inflate spending totals; the household sees a Sankey of money flow from income through accounts to expenses.
 
 **Foundation already in place** (delivered alongside the analytics page):
-- `CategoryKind` enum on `Category` (`User`, `Transfer`); a per-family system `Transfer` category is seeded on family creation and cannot be deleted or renamed.
+- `CategoryKind` enum on `Category` (`User`, `Transfer`, `Income`); per-family system `Transfer`/`Income` categories seeded on family creation, cannot be deleted or renamed.
 - `Transaction.IsTransfer` is auto-synced from the chosen category's `Kind` in the manual `PATCH /api/transactions/{id}` path and in the rule-engine application path (both initial import and rerun).
 - LLM categorizer hides system categories from the prompt, so the model can never suggest "Transfer".
-- All spending aggregations already exclude `IsTransfer = true` (`AnalyticsController.cs`).
 
-**Still TODO for Phase 4**:
-- `TransferMatcher` service: pairs transactions where amounts are equal-and-opposite within ±N days (configurable, default 3) across two accounts in the same family. Sets `IsTransfer = true`, joins via `TransferGroupId`, and assigns the family's system Transfer category so the ledger displays consistently with manual tagging.
-- Runs on every import-commit and as a manual "rescan transfers" action.
-- Angular: visual transfer badge in the ledger; right-click → "Unlink transfer" escape hatch (clears `TransferGroupId` and reverts category/IsTransfer on both sides).
-
-**Verify**: Import a credit-card statement and a checking statement that pays it; the matching pair shows a transfer badge and disappears from category totals.
+**Verify**: Import a credit-card statement and a checking statement that pays it → the matching pair shows a Transfer chip in the ledger and disappears from category totals. Scope analytics to the family account → contributions show as income; scope to a personal account → they show as "transfers out"; scope to all accounts → they net to zero. The Money-flow card renders income → accounts → expenses.
 
 ---
 

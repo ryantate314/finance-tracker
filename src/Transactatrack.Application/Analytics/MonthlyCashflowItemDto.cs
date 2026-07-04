@@ -5,5 +5,7 @@ public record MonthlyCashflowItemDto(
     int Month,
     decimal Income,
     decimal Expense,
-    decimal Net
+    decimal Net,
+    decimal TransfersIn,
+    decimal TransfersOut
 );

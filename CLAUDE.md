@@ -96,12 +96,14 @@ Enums (`AccountType`, `ImportBatchStatus`, etc.) are serialized as strings via a
 |---|---|
 | `InitialEmpty` | Empty schema baseline |
 | `Phase1Schema` | All 8 entities (incl. SubCategories), seed default Family |
+| `AddTransferGroupIdIndex` | Index on `Transaction.TransferGroupId` for the transfer matcher + boundary-analytics group queries |
 
 ### Build notes
 
 - Npgsql EF package tracks its own versioning — do not pin it to match EF Core's patch version (e.g. `10.0.7` doesn't exist for Npgsql; use `10.0.*`).
 - Angular Material uses M3 theming (`mat.define-theme`). Available palettes are `$azure-palette`, `$violet-palette`, `$rose-palette`, etc. — not the M2 `$indigo-palette`.
 - Material Icons are bundled via the `material-icons` npm package (listed in `angular.json` styles), not loaded from Google Fonts CDN.
+- Charts: `@swimlane/ngx-charts` for the pie/bar/line on the analytics page. The Sankey ("Money flow") uses `echarts`, lazy-imported inside `sankey-chart.component.ts` so its ~1MB bundle stays out of the main chunk — ngx-charts has no Sankey.
 
 ## Coding Conventions
 

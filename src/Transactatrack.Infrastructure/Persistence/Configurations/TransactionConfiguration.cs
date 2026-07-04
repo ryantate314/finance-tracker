@@ -26,6 +26,8 @@ internal class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
         builder.HasIndex(t => new { t.FamilyId, t.AccountId, t.Date });
         builder.HasIndex(t => new { t.AccountId, t.SourceRowHash }).IsUnique();
         builder.HasIndex(t => new { t.FamilyId, t.NeedsReview });
+        // Speeds up the analytics counterpart-membership GroupBy and the matcher's unpaired scan.
+        builder.HasIndex(t => t.TransferGroupId);
 
         builder.HasOne<Family>()
             .WithMany()

@@ -7,12 +7,14 @@ using Transactatrack.Application;
 using Transactatrack.Application.Categorization;
 using Transactatrack.Application.Imports;
 using Transactatrack.Application.Families;
+using Transactatrack.Application.Transfers;
 using Transactatrack.Infrastructure.Categorization;
 using Transactatrack.Infrastructure.Families;
 using Transactatrack.Infrastructure.Imports;
 using Transactatrack.Infrastructure.Imports.Parsers;
 using Transactatrack.Infrastructure.Llm;
 using Transactatrack.Infrastructure.Persistence;
+using Transactatrack.Infrastructure.Transfers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +57,9 @@ builder.Services.AddScoped<IFamilyImportService, FamilyImportService>();
 builder.Services.AddScoped<IRuleEngine, RuleEngine>();
 builder.Services.AddScoped<IOllamaCategorizer, OllamaCategorizer>();
 builder.Services.AddScoped<ICategorizationService, CategorizationService>();
+
+builder.Services.Configure<TransferMatchOptions>(builder.Configuration.GetSection("Transfers"));
+builder.Services.AddScoped<ITransferMatcher, TransferMatcher>();
 
 if (builder.Environment.IsDevelopment())
 {

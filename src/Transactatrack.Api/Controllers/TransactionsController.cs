@@ -26,6 +26,7 @@ public class TransactionsController : ControllerBase
         [FromQuery] DateTime? to,
         [FromQuery] string? q,
         [FromQuery] bool? needsReview,
+        [FromQuery] bool? isTransfer,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = DefaultPageSize,
         CancellationToken ct = default)
@@ -79,6 +80,9 @@ public class TransactionsController : ControllerBase
 
         if (needsReview.HasValue)
             query = query.Where(t => t.NeedsReview == needsReview.Value);
+
+        if (isTransfer.HasValue)
+            query = query.Where(t => t.IsTransfer == isTransfer.Value);
 
         var totalCount = await query.CountAsync(ct);
 

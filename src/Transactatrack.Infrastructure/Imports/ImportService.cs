@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Transactatrack.Application.Categorization;
 using Transactatrack.Application.Imports;
+using Transactatrack.Application.Transfers;
 using Transactatrack.Domain.Entities;
 using Transactatrack.Domain.Enums;
 using Transactatrack.Infrastructure.Persistence;
@@ -15,13 +16,15 @@ public class ImportService : IImportService
     private readonly IBankParserRegistry _registry;
     private readonly SourceRowHasher _hasher;
     private readonly ICategorizationService _categorization;
+    private readonly ITransferMatcher _transferMatcher;
 
-    public ImportService(AppDbContext db, IBankParserRegistry registry, SourceRowHasher hasher, ICategorizationService categorization)
+    public ImportService(AppDbContext db, IBankParserRegistry registry, SourceRowHasher hasher, ICategorizationService categorization, ITransferMatcher transferMatcher)
     {
         _db = db;
         _registry = registry;
         _hasher = hasher;
         _categorization = categorization;
+        _transferMatcher = transferMatcher;
     }
 
     public async Task<ImportPreviewDto> UploadAsync(Guid accountId, Stream csv, string filename, CancellationToken ct)
@@ -170,6 +173,10 @@ public class ImportService : IImportService
 
         batch.Status = ImportBatchStatus.Committed;
         await _db.SaveChangesAsync(ct);
+
+        // Auto-match transfers only after commit, when the rows are visible to the matcher's
+        // committed-ledger query and their cross-account counterparts (already committed) can be found.
+        await _transferMatcher.MatchBatchAsync(batchId, ct);
     }
 
     public async Task DiscardAsync(Guid batchId, CancellationToken ct)

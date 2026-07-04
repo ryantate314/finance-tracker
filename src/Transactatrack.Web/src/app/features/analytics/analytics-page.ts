@@ -18,7 +18,8 @@ import { extractErrorMessage } from '../../core/api/api-error';
 import { FamilyContextService } from '../../core/family-context/family-context.service';
 import { AccountDto, AccountsService } from '../accounts/accounts.service';
 import { OwnerDto, OwnersService } from '../owners/owners.service';
-import { AnalyticsService, CategoryBreakdownItem, MonthlyCashflowItem } from './analytics.service';
+import { AnalyticsService, CategoryBreakdownItem, MonthlyCashflowItem, SankeyData } from './analytics.service';
+import { SankeyChartComponent } from './sankey-chart.component';
 import { DateRange, RangePreset, formatRangeLabel, presetRange, shiftRange } from './time-range';
 
 interface PieDatum { name: string; value: number; }
@@ -44,6 +45,7 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
     MatInputModule,
     MatSelectModule,
     DecimalPipe,
+    SankeyChartComponent,
   ],
   template: `
     <div class="page-header">
@@ -116,6 +118,18 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
           <div class="stat-value expense">{{ totals().expense | number:'1.2-2' }}</div>
         </mat-card-content>
       </mat-card>
+      @if (hasTransfers()) {
+        <mat-card>
+          <mat-card-content>
+            <div class="stat-label">Transfers (in / out)</div>
+            <div class="stat-value transfers">
+              <span class="income">{{ totals().transfersIn | number:'1.0-0' }}</span>
+              <span class="sep"> / </span>
+              <span class="expense">{{ totals().transfersOut | number:'1.0-0' }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
       <mat-card>
         <mat-card-content>
           <div class="stat-label">Net</div>
@@ -173,6 +187,15 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
                   <td class="col-num">100.0%</td>
                   <td class="col-num">{{ breakdownTxnTotal() }}</td>
                 </tr>
+                @if (transfersOutItem(); as t) {
+                  <tr class="transfers-row clickable" (click)="drilldownToTransfers()"
+                    title="Show these transfers in the ledger">
+                    <td class="col-cat">{{ t.categoryName }}</td>
+                    <td class="col-num">{{ t.amount | number:'1.2-2' }}</td>
+                    <td class="col-num">—</td>
+                    <td class="col-num">{{ t.transactionCount }}</td>
+                  </tr>
+                }
               </tfoot>
             </table>
             </div>
@@ -221,6 +244,16 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
       </mat-card>
       }
     </div>
+
+    <mat-card class="chart-card flow-card">
+      <mat-card-header>
+        <mat-card-title>Money flow</mat-card-title>
+        <mat-card-subtitle>Income → accounts → transfers → expenses for the scoped accounts</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <app-sankey-chart [data]="sankey()"></app-sankey-chart>
+      </mat-card-content>
+    </mat-card>
   `,
   styles: [`
     :host { display: block; padding-bottom: 32px; }
@@ -236,6 +269,10 @@ interface LineSeries { name: string; series: LineSeriesPoint[]; }
     .stat-value { font-size: 1.6rem; font-weight: 500; }
     .stat-value.income { color: #2e7d32; }
     .stat-value.expense { color: #b00020; }
+    .stat-value.transfers { font-size: 1.3rem; }
+    .stat-value.transfers .sep { color: rgba(0,0,0,0.35); font-weight: 400; }
+    .flow-card { margin-top: 16px; }
+    .breakdown-table tfoot tr.transfers-row td { font-weight: 500; color: #ef6c00; border-top: 1px dashed rgba(0,0,0,0.18); }
     .charts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
     @media (min-width: 1280px) { .charts-grid:not(.charts-grid--single) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
     .chart-card { min-width: 0; }
@@ -279,7 +316,8 @@ export class AnalyticsPage {
     name: 'cashflow',
     selectable: true,
     group: ScaleType.Ordinal,
-    domain: ['#2e7d32', '#b00020'],
+    // Income, Expense, Transfers in, Transfers out — order matches the series order in barData().
+    domain: ['#2e7d32', '#b00020', '#66bb6a', '#ef6c00'],
   };
   readonly netLineScheme: Color = {
     name: 'net',
@@ -323,6 +361,12 @@ export class AnalyticsPage {
   });
   pie = signal<CategoryBreakdownItem[]>([]);
   cashflow = signal<MonthlyCashflowItem[]>([]);
+  sankey = signal<SankeyData | null>(null);
+
+  // The synthetic "Transfers out" row is split out from the real spending categories so it
+  // never appears in the pie or the category total, only as a distinct footer line.
+  realBreakdown = computed<CategoryBreakdownItem[]>(() => this.pie().filter(b => !b.isTransfersBucket));
+  transfersOutItem = computed<CategoryBreakdownItem | undefined>(() => this.pie().find(b => b.isTransfersBucket));
 
   rangeLabel = computed(() => formatRangeLabel(this.preset(), this.range()));
 
@@ -332,10 +376,10 @@ export class AnalyticsPage {
   });
 
   pieData = computed<PieDatum[]>(() =>
-    this.pie().map(b => ({ name: b.categoryName, value: b.amount })));
+    this.realBreakdown().map(b => ({ name: b.categoryName, value: b.amount })));
 
   breakdownRows = computed<BreakdownRow[]>(() => {
-    const items = this.pie();
+    const items = this.realBreakdown();
     const total = items.reduce((s, b) => s + b.amount, 0);
     return [...items]
       .sort((a, b) => b.amount - a.amount)
@@ -348,17 +392,30 @@ export class AnalyticsPage {
       }));
   });
 
-  breakdownTotal = computed(() => this.pie().reduce((s, b) => s + b.amount, 0));
-  breakdownTxnTotal = computed(() => this.pie().reduce((s, b) => s + b.transactionCount, 0));
+  breakdownTotal = computed(() => this.realBreakdown().reduce((s, b) => s + b.amount, 0));
+  breakdownTxnTotal = computed(() => this.realBreakdown().reduce((s, b) => s + b.transactionCount, 0));
 
-  barData = computed<BarGroup[]>(() =>
-    this.cashflow().map(m => ({
+  hasTransfers = computed(() => {
+    const t = this.totals();
+    return t.transfersIn !== 0 || t.transfersOut !== 0;
+  });
+
+  barData = computed<BarGroup[]>(() => {
+    const showTransfers = this.hasTransfers();
+    return this.cashflow().map(m => ({
       name: this.monthLabel(m),
       series: [
         { name: 'Income', value: m.income },
         { name: 'Expense', value: m.expense },
+        ...(showTransfers
+          ? [
+              { name: 'Transfers in', value: m.transfersIn },
+              { name: 'Transfers out', value: m.transfersOut },
+            ]
+          : []),
       ],
-    })));
+    }));
+  });
 
   lineData = computed<LineSeries[]>(() => [{
     name: 'Net',
@@ -372,7 +429,9 @@ export class AnalyticsPage {
     const cf = this.cashflow();
     const income = cf.reduce((s, m) => s + m.income, 0);
     const expense = cf.reduce((s, m) => s + m.expense, 0);
-    return { income, expense, net: income + expense };
+    const transfersIn = cf.reduce((s, m) => s + m.transfersIn, 0);
+    const transfersOut = cf.reduce((s, m) => s + m.transfersOut, 0);
+    return { income, expense, transfersIn, transfersOut, net: income + expense + transfersIn + transfersOut };
   });
 
   constructor() {
@@ -439,6 +498,10 @@ export class AnalyticsPage {
         next: r => this.cashflow.set(r),
         error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
       });
+      this.svc.sankey(query).subscribe({
+        next: r => this.sankey.set(r),
+        error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+      });
     });
   }
 
@@ -460,6 +523,21 @@ export class AnalyticsPage {
 
   onBreakdownRowClick(row: BreakdownRow) {
     this.drilldownToCategory(row.categoryId);
+  }
+
+  // Deep-link the "Transfers out" line to the ledger, filtered to the same scope + range with
+  // the transfers-only filter on, so the user can see exactly which transactions it covers.
+  drilldownToTransfers() {
+    const range = this.range();
+    const accountIds = this.effectiveAccountIds();
+    this.router.navigate(['/ledger'], {
+      queryParams: {
+        isTransfer: 'true',
+        from: dateToYmd(range.from),
+        to: dateToYmd(range.to),
+        accountIds: accountIds.length ? accountIds.join(',') : null,
+      },
+    });
   }
 
   private drilldownToCategory(categoryId: string | null) {

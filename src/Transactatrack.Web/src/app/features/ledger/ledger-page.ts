@@ -28,6 +28,8 @@ import { CategoryRulesService, SaveCategoryRuleRequest } from '../rules/category
 import { RuleEditDialog } from '../rules/rule-edit-dialog';
 import { TransactionDetailDialog, TransactionDetailResult } from '../transactions/transaction-detail-dialog';
 import { TransactionsService } from '../transactions/transactions.service';
+import { LinkTransferDialog } from '../transfers/link-transfer-dialog';
+import { TransfersService } from '../transfers/transfers.service';
 import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledger.service';
 
 @Component({
@@ -54,7 +56,11 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
   template: `
     <div class="page-header">
       <h2>Ledger</h2>
+      <span class="spacer"></span>
       <span class="muted">{{ result()?.totalCount ?? 0 }} rows</span>
+      <button mat-stroked-button (click)="rescanTransfers()" [disabled]="rescanning()">
+        <mat-icon>sync</mat-icon> Rescan transfers
+      </button>
     </div>
 
     <div class="filters">
@@ -96,6 +102,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
       </mat-form-field>
 
       <mat-checkbox [formControl]="needsReviewCtrl" class="review-check">Needs review</mat-checkbox>
+      <mat-checkbox [formControl]="isTransferCtrl" class="review-check">Transfers only</mat-checkbox>
 
       <button mat-stroked-button (click)="clearFilters()">Clear</button>
     </div>
@@ -129,7 +136,13 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
               [subCategoryId]="t.subCategoryId"
               (selectionChange)="onCategorySelection(t, $event)">
             </app-category-picker>
-            @if (t.needsReview && t.categorizationSource === 'Llm') {
+            @if (t.transferGroupId) {
+              <button type="button" class="source-chip transfer"
+                (click)="unlinkTransfer(t)"
+                title="Linked transfer — click to unlink">Transfer</button>
+            } @else if (t.isTransfer) {
+              <span class="source-chip transfer">Transfer</span>
+            } @else if (t.needsReview && t.categorizationSource === 'Llm') {
               <span class="source-chip ai">AI</span>
             } @else if (t.categorizationSource === 'Rule' && t.appliedRuleId) {
               <button type="button" class="source-chip rule"
@@ -169,6 +182,17 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
           <mat-icon>rule</mat-icon>
           <span>Create rule from this transaction</span>
         </button>
+        @if (row.transferGroupId) {
+          <button mat-menu-item (click)="unlinkTransfer(row)">
+            <mat-icon>link_off</mat-icon>
+            <span>Unlink transfer</span>
+          </button>
+        } @else {
+          <button mat-menu-item (click)="openLinkTransfer(row)">
+            <mat-icon>swap_horiz</mat-icon>
+            <span>Link as transfer…</span>
+          </button>
+        }
       </ng-template>
     </mat-menu>
 
@@ -181,7 +205,8 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     </mat-paginator>
   `,
   styles: [`
-    .page-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+    .page-header { display: flex; align-items: center; gap: 12px; padding: 16px 0; }
+    .page-header .spacer { flex: 1 1 auto; }
     .muted { color: rgba(0,0,0,0.55); font-size: 0.875rem; }
     .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; padding-bottom: 8px; }
     .filters mat-form-field { min-width: 180px; }
@@ -200,6 +225,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
     .source-chip { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; white-space: nowrap; border: 0; }
     .source-chip.ai { background: #e3f2fd; color: #1565c0; }
     .source-chip.rule { background: #e8f5e9; color: #2e7d32; }
+    .source-chip.transfer { background: #fff3e0; color: #e65100; }
     button.source-chip { cursor: pointer; }
     button.source-chip:hover { filter: brightness(0.95); }
     .actions-cell { flex: 0 0 56px; justify-content: center; padding: 0; }
@@ -208,6 +234,7 @@ import { LedgerQuery, LedgerService, PagedResult, TransactionDto } from './ledge
 export class LedgerPage {
   private svc = inject(LedgerService);
   private txSvc = inject(TransactionsService);
+  private transfersSvc = inject(TransfersService);
   private accountsSvc = inject(AccountsService);
   private categoriesSvc = inject(CategoriesService);
   private rulesSvc = inject(CategoryRulesService);
@@ -222,10 +249,14 @@ export class LedgerPage {
   accountIdsCtrl = new FormControl<string[]>([], { nonNullable: true });
   categoryIdsCtrl = new FormControl<string[]>([], { nonNullable: true });
   needsReviewCtrl = new FormControl(false, { nonNullable: true });
+  isTransferCtrl = new FormControl(false, { nonNullable: true });
 
   page = signal(1);
   pageSize = signal(50);
   result = signal<PagedResult<TransactionDto> | null>(null);
+  rescanning = signal(false);
+  // Bumped to force a ledger refetch after a transfer link/unlink/rescan touches rows off-page.
+  private reloadTick = signal(0);
 
   accounts = signal<AccountDto[]>([]);
   categories = signal<CategoryDto[]>([]);
@@ -240,6 +271,7 @@ export class LedgerPage {
   private accountIds = toSignal(this.accountIdsCtrl.valueChanges, { initialValue: [] as string[] });
   private categoryIds = toSignal(this.categoryIdsCtrl.valueChanges, { initialValue: [] as string[] });
   private needsReview = toSignal(this.needsReviewCtrl.valueChanges, { initialValue: false });
+  private isTransfer = toSignal(this.isTransferCtrl.valueChanges, { initialValue: false });
 
   private query$ = new Subject<LedgerQuery>();
 
@@ -253,6 +285,7 @@ export class LedgerPage {
       this.accountIdsCtrl.valueChanges,
       this.categoryIdsCtrl.valueChanges,
       this.needsReviewCtrl.valueChanges,
+      this.isTransferCtrl.valueChanges,
     ).pipe(takeUntilDestroyed()).subscribe(() => {
       if (this.page() !== 1) this.page.set(1);
     });
@@ -273,7 +306,9 @@ export class LedgerPage {
     effect(() => {
       const id = this.familyCtx.activeFamilyId();
       if (!id) return;
+      this.reloadTick(); // re-fetch when a transfer mutation bumps this
       const nr = this.needsReview();
+      const xfer = this.isTransfer();
       this.query$.next({
         accountIds: this.accountIds(),
         categoryIds: this.categoryIds(),
@@ -281,6 +316,7 @@ export class LedgerPage {
         to: this.to(),
         q: this.q(),
         needsReview: nr || undefined,
+        isTransfer: xfer || undefined,
         page: this.page(),
         pageSize: this.pageSize(),
       });
@@ -367,6 +403,48 @@ export class LedgerPage {
       });
   }
 
+  rescanTransfers() {
+    this.rescanning.set(true);
+    this.transfersSvc.rescan().subscribe({
+      next: r => {
+        this.rescanning.set(false);
+        this.snack.open(`Rescan complete — ${r.paired} transfer(s) matched.`, 'Close', { duration: 4000 });
+        if (r.paired > 0) this.reloadTick.update(v => v + 1);
+      },
+      error: e => {
+        this.rescanning.set(false);
+        this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 });
+      },
+    });
+  }
+
+  openLinkTransfer(tx: TransactionDto) {
+    this.dialog.open(LinkTransferDialog, {
+      data: { source: tx, accountName: (id: string) => this.accountName(id) },
+      width: '480px',
+    }).afterClosed().subscribe((counterpartId: string | undefined) => {
+      if (!counterpartId) return;
+      this.transfersSvc.link(tx.id, counterpartId).subscribe({
+        next: () => {
+          this.snack.open('Linked as transfer', 'Close', { duration: 3000 });
+          this.reloadTick.update(v => v + 1);
+        },
+        error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+      });
+    });
+  }
+
+  unlinkTransfer(tx: TransactionDto) {
+    if (!tx.transferGroupId) return;
+    this.transfersSvc.unlink(tx.transferGroupId).subscribe({
+      next: () => {
+        this.snack.open('Transfer unlinked', 'Close', { duration: 3000 });
+        this.reloadTick.update(v => v + 1);
+      },
+      error: e => this.snack.open(extractErrorMessage(e), 'Close', { duration: 4000 }),
+    });
+  }
+
   onPageChange(e: PageEvent) {
     this.pageSize.set(e.pageSize);
     this.page.set(e.pageIndex + 1);
@@ -379,6 +457,7 @@ export class LedgerPage {
     this.accountIdsCtrl.setValue([]);
     this.categoryIdsCtrl.setValue([]);
     this.needsReviewCtrl.setValue(false);
+    this.isTransferCtrl.setValue(false);
     this.page.set(1);
   }
 
@@ -401,6 +480,9 @@ export class LedgerPage {
 
     const needsReview = params.get('needsReview');
     if (needsReview === 'true') this.needsReviewCtrl.setValue(true);
+
+    const isTransfer = params.get('isTransfer');
+    if (isTransfer === 'true') this.isTransferCtrl.setValue(true);
   }
 }
 
